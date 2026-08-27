@@ -741,6 +741,19 @@ body.is-record .view { padding: 0; max-width: none; }
 .btn-macaron:hover { background: #9fe2c3; }
 .btn-macaron:active { background: #8bd9b6; }
 
+/* ============ 记账提醒 ============ */
+.remind-row { display: flex; align-items: center; gap: 10px; padding: 9px 0; border-bottom: 1px solid var(--border-soft); }
+.remind-row:last-child { border-bottom: none; }
+.remind-main { flex: 1; min-width: 0; }
+.remind-name { font-size: 13.5px; font-weight: 600; display: block; }
+.remind-note { font-size: 12px; color: var(--muted); display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.remind-week { display: flex; gap: 6px; flex-wrap: wrap; }
+.remind-day {
+  width: 34px; height: 34px; border-radius: 50%; background: var(--border-soft);
+  font-size: 13px; color: var(--text);
+}
+.remind-day.active { background: var(--primary-soft); color: var(--primary-2); font-weight: 700; }
+
 /* ============ 设置：检查更新 ============ */
 .about-update { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 12px; }
 .about-update .data-tip { margin: 0; }

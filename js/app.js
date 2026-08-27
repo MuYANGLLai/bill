@@ -6,7 +6,7 @@ window.App = (() => {
   const ymd = d => d.getFullYear() + '-' + UI.pad(d.getMonth() + 1) + '-' + UI.pad(d.getDate());
   const curWeekStart = () => { const d = new Date(); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); return ymd(d); };
 
-  const APP_VERSION = 'v1.79.0'; // 当前版本（与 sw.js 缓存名同步，bump 时一起更新）
+  const APP_VERSION = 'v1.80.0'; // 当前版本（与 sw.js 缓存名同步，bump 时一起更新）
 
   const state = {
     month: UI.monthKey(new Date().getFullYear(), new Date().getMonth() + 1),
@@ -725,6 +725,60 @@ window.App = (() => {
     }
   }
 
+  /* ---------------- 记账提醒 ---------------- */
+  function saveRemind(id) {
+    const box = document.querySelector('#modal-root .modal-overlay');
+    if (!box) return;
+    const mode = box.dataset.remindMode || 'daily';
+    const time = $('#remind-time').value || '20:00';
+    const weekDays = (box.dataset.remindDays || '').split(',').filter(Boolean).map(Number);
+    const monthDay = Math.min(31, Math.max(1, parseInt($('#remind-day').value || '1', 10) || 1));
+    const note = $('#remind-note').value.trim();
+    const enabled = $('#remind-enabled').checked;
+    const list = Store.data.settings.reminders = Store.data.settings.reminders || [];
+    const patch = { mode, time, weekDays, monthDay, note, enabled };
+    if (id) { const r = list.find(x => x.id === id); if (r) Object.assign(r, patch); }
+    else list.push(Object.assign({ id: 'rm' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6) }, patch));
+    Store.save();
+    closeModal();
+    UI.toast('提醒已保存');
+    Views.settings();
+  }
+
+  function delRemind(id) {
+    Store.data.settings.reminders = (Store.data.settings.reminders || []).filter(x => x.id !== id);
+    Store.save();
+    closeModal();
+    UI.toast('提醒已删除');
+    Views.settings();
+  }
+
+  /* 每 30 秒检查一次提醒（应用打开时生效） */
+  function checkReminders() {
+    const list = (Store.data.settings.reminders || []).filter(r => r.enabled && r.time);
+    if (!list.length) return;
+    const now = new Date();
+    const hm = UI.pad(now.getHours()) + ':' + UI.pad(now.getMinutes());
+    const wd = now.getDay() === 0 ? 7 : now.getDay();
+    const dom = now.getDate();
+    const today = UI.todayStr();
+    list.forEach(r => {
+      if (r.time !== hm) return;
+      if (r.mode === 'weekly' && !(r.weekDays || []).includes(wd)) return;
+      if (r.mode === 'monthly' && Number(r.monthDay) !== dom) return;
+      if (r._last === today + ' ' + hm) return;
+      r._last = today + ' ' + hm;
+      Store.save();
+      const body = (r.note ? r.note + ' · ' : '') + '该记账啦';
+      try {
+        if ('Notification' in window && Notification.permission === 'granted') {
+          new Notification('轻账单 · 记账提醒', { body });
+        }
+      } catch (e) { /* 忽略通知异常 */ }
+      UI.toast('⏰ 记账提醒：' + body);
+    });
+  }
+
   function handleAction(el) {
     const act = el.dataset.action;
     const val = el.dataset.val;
@@ -922,6 +976,15 @@ window.App = (() => {
         UI.toast(Store.data.settings.accOrder ? '已显示排序按钮' : '已隐藏排序按钮');
         Views.accounts();
         break;
+      case 'open-remind': Views.openRemindModal(null); break;
+      case 'edit-remind': Views.openRemindModal(val); break;
+      case 'save-remind': saveRemind(val || null); break;
+      case 'del-remind': delRemind(val); break;
+      case 'remind-notify':
+        if ('Notification' in window) {
+          Notification.requestPermission().then(p => UI.toast(p === 'granted' ? '系统通知已开启' : '未开启系统通知', p === 'granted' ? 'ok' : 'err'));
+        } else UI.toast('当前浏览器不支持系统通知', 'err');
+        break;
       case 'save-acc': saveAcc(val || null); break;
       case 'del-acc': delAcc(val); break;
       case 'open-transfer': Views.openTransferModal(); break;
@@ -1036,6 +1099,10 @@ window.App = (() => {
         UI.toast(el.checked ? '已开启分类图标颜色' : '已关闭，图标全部为黑色');
         Views.settings();
       }
+      else if (el.dataset && el.dataset.action === 'toggle-remind') {
+        const r = (Store.data.settings.reminders || []).find(x => x.id === el.dataset.val);
+        if (r) { r.enabled = el.checked; Store.save(); }
+      }
       else if (el.id === 'attr-exclude-stats') { state.record.excludeStats = el.checked; }
       else if (el.id === 'attr-exclude-budget') { state.record.excludeBudget = el.checked; }
       else if (el.id === 'attach-camera' || el.id === 'attach-gallery' || el.id === 'attach-file') {
@@ -1097,6 +1164,8 @@ window.App = (() => {
     applyFont();
     bindEvents();
     render();
+    setInterval(checkReminders, 30000);
+    checkReminders();
   }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);

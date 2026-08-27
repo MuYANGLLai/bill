@@ -1442,6 +1442,26 @@ window.Views = (() => {
         ).join('') +
       '</div>';
 
+    /* 记账提醒 */
+    const reminders = Store.data.settings.reminders || [];
+    const remindBody =
+      '<div class="data-actions" style="margin-bottom:8px">' +
+        '<button class="btn btn-primary btn-sm" data-action="open-remind">＋ 新增提醒</button>' +
+        '<button class="btn btn-ghost btn-sm" data-action="remind-notify">🔔 开启系统通知</button>' +
+      '</div>' +
+      (reminders.length
+        ? reminders.map(r =>
+            '<div class="remind-row">' +
+              '<label class="check" style="margin:0"><input type="checkbox" data-action="toggle-remind" data-val="' + r.id + '"' + (r.enabled ? ' checked' : '') + '></label>' +
+              '<span class="remind-main">' +
+                '<span class="remind-name">' + esc(remindModeText(r)) + ' ' + esc(r.time) + '</span>' +
+                (r.note ? '<span class="remind-note">' + esc(r.note) + '</span>' : '') +
+              '</span>' +
+              '<button class="btn btn-ghost btn-sm" data-action="edit-remind" data-val="' + r.id + '">编辑</button>' +
+            '</div>').join('')
+        : '<div class="data-tip">还没有提醒。可设置每天 / 每周 / 每月定时提醒记账；开启系统通知后，应用打开时会按时提醒你。</div>') +
+      '<div class="data-tip">提醒在应用打开时生效（网页无法后台常驻），建议把应用添加到主屏幕。</div>';
+
     /* 数据管理 */
     const dataBody =
       '<div class="data-actions">' +
@@ -1457,7 +1477,7 @@ window.Views = (() => {
 
     /* 关于 */
     const aboutBody =
-      '<div class="about-name">🧾 轻账单 LiteBill<span class="about-ver">' + ((window.App && App.VERSION) || 'v1.79.0') + '</span></div>' +
+      '<div class="about-name">🧾 轻账单 LiteBill<span class="about-ver">' + ((window.App && App.VERSION) || 'v1.80.0') + '</span></div>' +
       '<div class="about-desc">本地优先的个人记账应用：记账、分类、账户、统计、预算、借贷、周期账单、语音记账、拍照识别、导入导出。数据不离开你的设备。</div>' +
       '<div class="about-update">' +
         '<button class="btn btn-primary btn-sm" data-action="check-update">🔄 检查更新</button>' +
@@ -1474,10 +1494,57 @@ window.Views = (() => {
         '<div class="page-head"><h1>设置</h1></div>' +
         item('cat', 'category', '分类管理', catBody) +
         item('rec', 'calendar', '周期账单', recBody) +
+        item('remind', 'time', '记账提醒', remindBody) +
         item('theme', 'palette', '外观', themeBody) +
         item('data', 'data', '数据管理', dataBody) +
         item('about', 'info', '关于', aboutBody) +
       '</div>';
+  }
+
+  /* ---------- 记账提醒 ---------- */
+  const WEEK_NAMES = ['', '一', '二', '三', '四', '五', '六', '日'];
+  function remindModeText(r) {
+    if (r.mode === 'weekly') return '每周 ' + ((r.weekDays || []).map(d => '周' + (WEEK_NAMES[d] || '日')).join('、') || '—');
+    if (r.mode === 'monthly') return '每月 ' + (r.monthDay || 1) + ' 号';
+    return '每天';
+  }
+  function openRemindModal(id) {
+    const r = id ? (Store.data.settings.reminders || []).find(x => x.id === id) : null;
+    const mode = r ? r.mode : 'daily';
+    const modal = UI.modal(r ? '编辑提醒' : '新增提醒',
+      '<div class="field"><label>模式</label><div class="seg">' +
+        [['daily', '每天'], ['weekly', '每周'], ['monthly', '每月']].map(p =>
+          '<button class="seg-btn ' + (mode === p[0] ? 'active' : '') + '" data-action="remind-mode" data-val="' + p[0] + '">' + p[1] + '</button>').join('') +
+      '</div></div>' +
+      '<div class="field"><label>时间</label><input type="time" id="remind-time" value="' + (r ? esc(r.time) : '20:00') + '" style="padding:9px 10px;border-radius:10px;border:1px solid var(--border);background:var(--input-bg);color:var(--text);font-size:15px"></div>' +
+      '<div class="field" id="remind-week-wrap"' + (mode === 'weekly' ? '' : ' style="display:none"') + '><label>星期几（可多选）</label><div class="remind-week">' +
+        [1, 2, 3, 4, 5, 6, 7].map(d =>
+          '<button type="button" class="remind-day' + ((r && (r.weekDays || []).includes(d)) ? ' active' : '') + '" data-day="' + d + '">' + WEEK_NAMES[d] + '</button>').join('') +
+      '</div></div>' +
+      '<div class="field" id="remind-month-wrap"' + (mode === 'monthly' ? '' : ' style="display:none"') + '><label>每月几号</label><input type="number" id="remind-day" min="1" max="31" value="' + (r ? esc(String(r.monthDay || 1)) : '1') + '" style="padding:9px 10px;border-radius:10px;border:1px solid var(--border);background:var(--input-bg);color:var(--text);font-size:15px;width:110px"></div>' +
+      '<div class="field"><label>备注</label><input id="remind-note" value="' + (r ? esc(r.note || '') : '') + '" placeholder="如：发工资了记得记账"></div>' +
+      '<label class="check"><input type="checkbox" id="remind-enabled"' + (!r || r.enabled ? ' checked' : '') + '> 启用</label>' +
+      '<div class="modal-actions">' +
+        (r ? '<button class="btn btn-danger" data-action="del-remind" data-val="' + r.id + '">删除</button>' : '') +
+        '<button class="btn btn-ghost" data-action="modal-close">取消</button>' +
+        '<button class="btn btn-primary" data-action="save-remind" data-val="' + (r ? r.id : '') + '">保存</button>' +
+      '</div>');
+    const box = modal.box;
+    box.dataset.remindMode = mode;
+    box.dataset.remindDays = (r && (r.weekDays || []).join(',')) || '';
+    box.querySelectorAll('[data-action="remind-mode"]').forEach(b => b.addEventListener('click', () => {
+      box.dataset.remindMode = b.dataset.val;
+      box.querySelectorAll('[data-action="remind-mode"]').forEach(x => x.classList.toggle('active', x === b));
+      box.querySelector('#remind-week-wrap').style.display = b.dataset.val === 'weekly' ? '' : 'none';
+      box.querySelector('#remind-month-wrap').style.display = b.dataset.val === 'monthly' ? '' : 'none';
+    }));
+    box.querySelectorAll('.remind-day').forEach(b => b.addEventListener('click', () => {
+      const set = new Set((box.dataset.remindDays || '').split(',').filter(Boolean).map(Number));
+      const v = Number(b.dataset.day);
+      if (set.has(v)) set.delete(v); else set.add(v);
+      box.dataset.remindDays = [...set].join(',');
+      b.classList.toggle('active', set.has(v));
+    }));
   }
 
   /* ---------- 分类弹窗（parentId 用于创建二级分类） ---------- */
@@ -2307,7 +2374,7 @@ window.Views = (() => {
     updateDiscountCalc, updateDiscountHighlight, handleAttachFiles,
     openRecAccModal, openRecTimeModal,
     openImportModal, impHandleFile, renderImportMapping, showImpStep, doImport, search, loans, openLoanAccountModal,
-    openAccModal, openTransferModal, openCatModal, accountDetail, accMoreMenu,
+    openAccModal, openTransferModal, openCatModal, accountDetail, accMoreMenu, openRemindModal,
     txRow, catOfId, typeLabel
   };
 })();

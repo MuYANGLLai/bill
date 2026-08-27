@@ -76,7 +76,8 @@ window.Store = (() => {
         catIconColor: false,     // 分类图标颜色开关：false = 全部黑色
         catColorVersion: 'macaron-1',
         font: 'default',         // 字体：default | rounded | serif | hei | kai
-        accOrder: true           // 账户页是否显示排序按钮
+        accOrder: true,          // 账户页是否显示排序按钮
+        reminders: []            // 记账提醒：[{id, mode, time, weekDays, monthDay, note, enabled}]
       },
       accounts: Preset.defaultAccounts.map(a => Object.assign({ id: uid(), includeAssets: true }, a)),
       categories: buildPresetCategories(),
@@ -184,6 +185,7 @@ window.Store = (() => {
         if (data.settings.catIconColor === undefined) data.settings.catIconColor = false;
         if (data.settings.font === undefined) data.settings.font = 'default';
         if (data.settings.accOrder === undefined) data.settings.accOrder = true;
+        if (!Array.isArray(data.settings.reminders)) data.settings.reminders = [];
         /* 迁移：账户「计入总资产」标记默认 true */
         data.accounts.forEach(a => { if (a.includeAssets === undefined) a.includeAssets = true; });
         return data;
