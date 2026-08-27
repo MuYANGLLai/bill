@@ -84,7 +84,10 @@ window.Preset = {
     trend:      '<path d="M3 17l6-6 4 4 8-8"/><path d="M15 7h6v6"/>',
     laptop:     '<rect x="4" y="5" width="16" height="11" rx="1"/><path d="M2 20h20"/>',
     recycle:    '<path d="M20 12a8 8 0 1 1-2.3-5.6"/><path d="M20 3v4h-4"/>',
-    box:        '<path d="M3 8l9-4 9 4v9l-9 4-9-4z"/><path d="M3 8l9 4 9-4"/><path d="M12 12v9"/>'
+    box:        '<path d="M3 8l9-4 9 4v9l-9 4-9-4z"/><path d="M3 8l9 4 9-4"/><path d="M12 12v9"/>',
+    fun:        '<rect x="2.5" y="7" width="19" height="10" rx="3.5"/><path d="M7.5 10v4"/><path d="M5.5 12h4"/><path d="M16 10.5h.01"/><path d="M18.5 13h.01"/>',
+    hongbao:    '<rect x="5" y="3.5" width="14" height="17" rx="2"/><path d="M5 9.5c2.3-2.2 11.7-2.2 14 0"/><circle cx="12" cy="14.5" r="2.6"/>',
+    refund:     '<polyline points="2 5 2 11 8 11"/><path d="M4.51 15a9 9 0 1 0 2.13-9.36L2 11"/><path d="M14 8.5l1.5 1.5 1.5-1.5"/><path d="M15.5 10v6"/><path d="M13.5 13.5h4"/>'
   },
 
   /* 功能 UI 线条图标库 */

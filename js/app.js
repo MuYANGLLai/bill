@@ -6,7 +6,7 @@ window.App = (() => {
   const ymd = d => d.getFullYear() + '-' + UI.pad(d.getMonth() + 1) + '-' + UI.pad(d.getDate());
   const curWeekStart = () => { const d = new Date(); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); return ymd(d); };
 
-  const APP_VERSION = 'v1.80.0'; // 当前版本（与 sw.js 缓存名同步，bump 时一起更新）
+  const APP_VERSION = 'v1.85.0'; // 当前版本（与 sw.js 缓存名同步，bump 时一起更新）
 
   const state = {
     month: UI.monthKey(new Date().getFullYear(), new Date().getMonth() + 1),
@@ -23,7 +23,8 @@ window.App = (() => {
       excludeStats: false, excludeBudget: false, attrPanel: false, attachPanel: false, attachments: []
     },
     filters: { type: 'all', cat: 'all', acc: 'all', kw: '' },
-    stats: { monthKey: UI.monthKey(new Date().getFullYear(), new Date().getMonth() + 1), year: new Date().getFullYear(), from: '', to: '', bar: 'expense', cat: 'root', type: 'expense', dailyBar: 'expense', skMode: 'amt' },
+    stats: { monthKey: UI.monthKey(new Date().getFullYear(), new Date().getMonth() + 1), year: new Date().getFullYear(), from: '', to: '', bar: 'expense', cat: 'root', type: 'expense', dailyBar: 'expense', skMode: 'amt', rankType: 'expense' },
+    catStats: { period: 'all', year: new Date().getFullYear(), monthKey: UI.monthKey(new Date().getFullYear(), new Date().getMonth() + 1), from: '', to: '' },
     settingsCatType: 'expense',
     settingsOpen: { cat: false, rec: false, theme: false, data: false, about: false },
     accOpen: { acc: true },
@@ -48,6 +49,11 @@ window.App = (() => {
     else if (sub === 'custom') Views.statsCustom();
     else Views.statsMonth();
   }
+  /* 分类专属页刷新 */
+  function catRefresh() {
+    const id = new URLSearchParams(route().split('?')[1] || '').get('id');
+    Views.categoryPage(id);
+  }
 
   /* ---------------- 渲染 ---------------- */
   function render() {
@@ -69,6 +75,7 @@ window.App = (() => {
     else if (path === '/budget') Views.budget();
     else if (path === '/accounts') Views.accounts();
     else if (path === '/account') Views.accountDetail(new URLSearchParams(qs || '').get('id'));
+    else if (path === '/category') Views.categoryPage(new URLSearchParams(qs || '').get('id'));
     else if (path === '/loans') Views.loans();          // 借贷专属页
     else if (path === '/search') Views.search();        // 搜索页
     else if (path === '/recurring') nav('/settings');   // 周期已并入设置页
@@ -799,6 +806,7 @@ window.App = (() => {
         Views.renderRecSubs();
         Views.renderRecAccs();
         Views.renderRecFnRow();
+        Views.updateAmountColor();
         break;
       }
       case 'key': pressKey(el.dataset.key); break;
@@ -930,11 +938,12 @@ window.App = (() => {
       }
       case 'stat-page': nav('/stats/' + val); break;
       case 'stat-nav': {
+        const d = parseInt(el.dataset.d, 10);
         if (route().split('/')[2] === 'year') {
-          state.stats.year += parseInt(val, 10);
+          state.stats.year += d;
         } else {
           const { y, m } = UI.parseMonthKey(state.stats.monthKey);
-          let ny = y, nm = m + parseInt(val, 10);
+          let ny = y, nm = m + d;
           if (nm < 1) { nm = 12; ny--; } else if (nm > 12) { nm = 1; ny++; }
           state.stats.monthKey = UI.monthKey(ny, nm);
         }
@@ -951,6 +960,25 @@ window.App = (() => {
       case 'stat-type': state.stats.type = val; statsRefresh(); break;
       case 'stat-cat': state.stats.cat = val; statsRefresh(); break;
       case 'stat-sk': state.stats.skMode = val; statsRefresh(); break;
+      case 'catrank-type': state.stats.rankType = val; statsRefresh(); break;
+      case 'cat-period': state.catStats.period = val; catRefresh(); break;
+      case 'cat-nav': {
+        if (state.catStats.period === 'year') {
+          state.catStats.year += parseInt(val, 10);
+        } else {
+          const { y, m } = UI.parseMonthKey(state.catStats.monthKey);
+          let ny = y, nm = m + parseInt(val, 10);
+          if (nm < 1) { nm = 12; ny--; } else if (nm > 12) { nm = 1; ny++; }
+          state.catStats.monthKey = UI.monthKey(ny, nm);
+        }
+        catRefresh();
+        break;
+      }
+      case 'cat-today':
+        state.catStats.year = new Date().getFullYear();
+        state.catStats.monthKey = UI.monthKey(new Date().getFullYear(), new Date().getMonth() + 1);
+        catRefresh();
+        break;
       case 'budget-total-save': saveBudgetTotal(); break;
       case 'add-acc': Views.openAccModal(null); break;
       case 'go-acc': nav('/account?id=' + val); break;
@@ -1074,6 +1102,8 @@ window.App = (() => {
       const el = e.target;
       if (el.id === 'stat-from') { state.stats.from = el.value; statsRefresh(); }
       else if (el.id === 'stat-to') { state.stats.to = el.value; statsRefresh(); }
+      else if (el.id === 'cat-from') { state.catStats.from = el.value; catRefresh(); }
+      else if (el.id === 'cat-to') { state.catStats.to = el.value; catRefresh(); }
       else if (el.matches('[data-budget-cat]')) saveCategoryBudget(el);
       else if (el.id === 'import-file') importJSON(el);
       else if (el.id === 'imp-file') { Views.impHandleFile(el.files[0]); el.value = ''; }

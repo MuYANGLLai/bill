@@ -274,7 +274,7 @@ window.Store = (() => {
   function removeTransaction(id) { data.transactions = data.transactions.filter(t => t.id !== id); save(); }
 
   const inMonth = (t, y, m) => t.date.startsWith(y + '-' + pad(m));
-  const inRange = (t, from, to) => t.date >= from && t.date <= to;
+  const inRange = (t, from, to) => (!from || t.date >= from) && (!to || t.date <= to);
 
   function getTransactions(opts = {}) {
     let list = data.transactions.slice();
@@ -285,10 +285,9 @@ window.Store = (() => {
     if (keyword) {
       const kw = keyword.trim().toLowerCase();
       list = list.filter(t => {
-        const cat = getCategory(t.categoryId);
         return (t.note || '').toLowerCase().includes(kw) ||
                (t.merchant || '').toLowerCase().includes(kw) ||
-               (cat ? cat.name.toLowerCase().includes(kw) : false);
+               categoryLabel(t.categoryId).toLowerCase().includes(kw); // 一级+二级分类名均可匹配
       });
     }
     if (from && to) list = list.filter(t => inRange(t, from, to));

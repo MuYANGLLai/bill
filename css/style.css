@@ -554,6 +554,8 @@ input[type="number"] { -moz-appearance: textfield; }
   max-height: 78vh; overflow-y: auto;
 }
 .amount-sm { font-size: 26px; padding: 2px 2px 8px; min-height: 36px; }
+.amount-sm.amt-expense { color: var(--danger); }
+.amount-sm.amt-income { color: var(--success); }
 
 /* ---- 记账页：历史备注联想 ---- */
 .rec-note-history { margin-bottom: 6px; }
@@ -741,6 +743,21 @@ body.is-record .view { padding: 0; max-width: none; }
 .btn-macaron:hover { background: #9fe2c3; }
 .btn-macaron:active { background: #8bd9b6; }
 
+/* ============ 分类专属页：纯白等大去描边按钮 ============ */
+/* v1.82：分类专属页周期按钮白色水平；v1.84：等大 + 去描边（按钮规范：纯白 等大 去描边） */
+.cat-ctl .seg { background: transparent; gap: 6px; }
+.cat-ctl .seg-btn { flex: 1 1 0; min-width: 0; background: #ffffff; border: none; color: var(--text); white-space: nowrap; }
+.cat-ctl .seg-btn.active { background: var(--primary-soft); color: var(--primary-2); }
+.cat-ctl .stat-ctl-label { background: #ffffff; border: none; color: var(--text); }
+.cat-ctl .btn-ghost { background: #ffffff; border: none; color: var(--text); }
+/* v1.83：统计模块所有卡片上的按钮灰色改纯白；v1.84：去描边（按钮规范：纯白 等大 去描边） */
+.stat-nav ~ .card .seg { background: transparent; gap: 6px; }
+.stat-nav ~ .card .seg-btn { flex: 1 1 0; min-width: 0; background: #ffffff; border: none; color: var(--text); white-space: nowrap; }
+.stat-nav ~ .card .seg-btn.active { background: var(--primary-soft); color: var(--primary-2); box-shadow: none; }
+.stat-nav ~ .card .stat-ctl-label { background: #ffffff; border: none; color: var(--text); }
+.stat-nav ~ .card .btn-ghost { background: #ffffff; border: none; color: var(--text); }
+.stat-nav ~ .card .btn-ghost:hover { background: var(--border-soft); }
+
 /* ============ 记账提醒 ============ */
 .remind-row { display: flex; align-items: center; gap: 10px; padding: 9px 0; border-bottom: 1px solid var(--border-soft); }
 .remind-row:last-child { border-bottom: none; }
@@ -753,6 +770,16 @@ body.is-record .view { padding: 0; max-width: none; }
   font-size: 13px; color: var(--text);
 }
 .remind-day.active { background: var(--primary-soft); color: var(--primary-2); font-weight: 700; }
+
+/* ============ 一级分类排行 ============ */
+.catrank-row {
+  display: flex; align-items: center; gap: 10px; width: 100%;
+  padding: 9px 4px; border-bottom: 1px solid var(--border-soft); text-align: left;
+}
+.catrank-row:last-child { border-bottom: none; }
+.catrank-ico { font-size: 20px; color: var(--text); width: 24px; text-align: center; flex-shrink: 0; }
+.catrank-name { flex: 1; font-size: 13.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.catrank-val { font-size: 14px; font-weight: 500; font-variant-numeric: tabular-nums; flex-shrink: 0; }
 
 /* ============ 设置：检查更新 ============ */
 .about-update { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 12px; }
@@ -861,7 +888,11 @@ body.is-record .view { padding: 0; max-width: none; }
 .week-ico { background: var(--border-soft); color: var(--muted); font-size: 14px; font-weight: 600; }
 
 /* ============ v1.23：统计模块重构 ============ */
+/* v1.84 按钮规范：纯白 等大 去描边 */
 .stat-nav { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
+.stat-nav .btn { flex: 1 1 0; min-width: 0; }
+.stat-nav .btn-ghost { background: #ffffff; border: none; color: var(--text); }
+.stat-nav .btn-ghost:hover { background: var(--border-soft); }
 .stat-ctl { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .stat-ctl-card .stat-ctl { margin-bottom: 10px; }
 .stat-ctl-label {
@@ -910,7 +941,7 @@ body.is-record .view { padding: 0; max-width: none; }
 .sk2-val em { font-style: normal; }
 .sk2-lines { width: 30px; flex-shrink: 0; display: flex; flex-direction: column; justify-content: space-around; gap: 1px; }
 .sk2-line { border-top: 2px dashed; opacity: .5; align-self: center; width: 100%; }
-.sk2-bar { width: 24px; flex-shrink: 0; align-self: center; display: flex; flex-direction: column; height: 100%; border-radius: 8px; overflow: hidden; background: var(--border-soft); }
+.sk2-bar { width: 24px; flex-shrink: 0; align-self: center; display: flex; flex-direction: column; height: 100%; border-radius: 8px; overflow: hidden; background: #ffffff; }
 .sk2-seg { min-height: 2px; }
 .sk2-mid { width: 56px; flex-shrink: 0; display: flex; flex-direction: column; align-items: center; justify-content: space-between; padding: 16px 0; font-size: 11.5px; font-weight: 700; font-variant-numeric: tabular-nums; text-align: center; }
 .sk2-arrow { color: var(--muted); margin: 6px 0; }
@@ -924,7 +955,7 @@ body.is-record .view { padding: 0; max-width: none; }
 /* ============ v1.24：马卡龙 / 资产汇总圆环 ============ */
 /* 近七日统计表格：极致压缩 */
 .dly-stat { gap: 4px; margin: 10px 0 0; }
-.dly-stat .stat-card { background: var(--border-soft); box-shadow: none; border-radius: 8px; padding: 4px 6px; }
+.dly-stat .stat-card { background: #ffffff; box-shadow: none; border-radius: 8px; padding: 4px 6px; border: 1px solid var(--border-soft); }
 .dly-stat .stat-label { font-size: 10.5px; margin-bottom: 1px; }
 .dly-stat .stat-val { font-size: 15px; margin-top: 1px; }
 @media (max-width: 760px) {

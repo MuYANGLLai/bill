@@ -382,7 +382,7 @@ window.Views = (() => {
           '</div>' +
           '<div class="rec-note-amt">' +
             '<textarea id="rec-note" rows="2" placeholder="备注（支持多行）…">' + esc(noteVal) + '</textarea>' +
-            '<div class="amount-box amount-sm"><span class="amount-cur">¥</span><span id="rec-amount">' + esc(st.amount) + '</span></div>' +
+            '<div class="amount-box amount-sm' + (st.type === 'income' ? ' amt-income' : st.type === 'expense' ? ' amt-expense' : '') + '"><span class="amount-cur">¥</span><span id="rec-amount">' + esc(st.amount) + '</span></div>' +
           '</div>' +
           '<div class="rec-fn-row" id="rec-fn-row"></div>' +
           '<div id="rec-panels"></div>' +
@@ -436,7 +436,7 @@ window.Views = (() => {
       seen.add(n);
       list.push({ note: n, sort: t.date + ' ' + (t.time || '') });
     });
-    list.sort((a, b) => (a.sort < b.sort ? 1 : -1));
+    list.sort((a, b) => (a.sort > b.sort ? 1 : -1));
     if (!list.length) { box.style.display = 'none'; return; }
     const catName = (Store.getCategory(st.categoryId) || {}).name || '';
     box.querySelector('.rec-note-history-head').textContent = '历史备注（' + catName + '，' + list.length + '）';
@@ -444,6 +444,8 @@ window.Views = (() => {
     listEl.innerHTML = list.map(x =>
       '<button type="button" class="rec-note-hist-item" data-note="' + esc(x.note) + '">' + esc(x.note) + '</button>').join('');
     box.style.display = 'block';
+    /* 打开时默认滑到最底部（最新备注在底部，正序） */
+    requestAnimationFrame(() => { listEl.scrollTop = listEl.scrollHeight; });
   }
 
   function bindRecNoteHistory() {
@@ -459,6 +461,15 @@ window.Views = (() => {
       $('#rec-note').value = it.dataset.note;
       box.style.display = 'none';
     });
+  }
+
+  /* 记一笔总金额颜色：支出红 / 收入绿 */
+  function updateAmountColor() {
+    const box = document.querySelector('.amount-sm');
+    if (!box) return;
+    const st = S().record;
+    box.classList.toggle('amt-expense', st.type === 'expense');
+    box.classList.toggle('amt-income', st.type === 'income');
   }
 
   /* 功能栏：账户键显示所选账户图标+名称 */
@@ -680,6 +691,7 @@ window.Views = (() => {
     const v = $('#view');
     const s = S().stats;
     const skMode = s.skMode || 'amt';
+    const skRankType = s.rankType || 'expense';
     const txs = Store.getTransactions({ from: o.from, to: o.to });
     let income = 0, expense = 0;
     txs.forEach(t => { if (t.excludeStats) return; if (t.type === 'income') income += t.amount; else if (t.type === 'expense') expense += t.amount; });
@@ -783,6 +795,12 @@ window.Views = (() => {
             '<div class="asset-donut-list" id="stat-donut-list"></div>' +
           '</div>' +
         '</div>' +
+        /* 一级分类排行（同日常页） */
+        '<div class="card"><div class="card-title"><span>一级分类排行</span>' +
+          '<div class="seg seg-sm">' +
+            '<button class="seg-btn ' + (skRankType === 'expense' ? 'active' : '') + '" data-action="catrank-type" data-val="expense">支出</button>' +
+            '<button class="seg-btn ' + (skRankType === 'income' ? 'active' : '') + '" data-action="catrank-type" data-val="income">收入</button>' +
+          '</div></div><div id="stat-catrank"></div></div>' +
         /* 账单明细 */
         '<div class="card"><div class="card-title">' + o.billTitle + '（' + list.length + ' 笔）</div>' +
           '<div id="stat-bills">' +
@@ -876,6 +894,9 @@ window.Views = (() => {
           '<span class="asset-list-pct">' + (dTotal > 0 ? Math.round(x.value / dTotal * 100) : 0) + '%</span>' +
         '</div>').join('');
     } else de.innerHTML = emptyHTML('🍃', '该时间段暂无' + (s.type === 'income' ? '收入' : '支出') + '记录');
+
+    /* 一级分类排行（同日常页，统计当前区间） */
+    renderCatRank($('#stat-catrank'), skRankType, o.from, o.to);
   }
 
   /* ---------- 日常 ---------- */
@@ -894,6 +915,7 @@ window.Views = (() => {
 
     /* 近七日收支柱状图（可切换收入/支出） */
     const dlyBar = S().stats.dailyBar || 'expense';
+    const rankType = S().stats.rankType || 'expense';
     const incBy = {}, expBy = {};
     txs.forEach(t => {
       if (t.excludeStats) return;
@@ -935,6 +957,12 @@ window.Views = (() => {
             '<div class="asset-donut-list" id="dly-assets-list"></div>' +
           '</div>' +
         '</div>' +
+        /* 一级分类排行 */
+        '<div class="card"><div class="card-title"><span>一级分类排行</span>' +
+          '<div class="seg seg-sm">' +
+            '<button class="seg-btn ' + (rankType === 'expense' ? 'active' : '') + '" data-action="catrank-type" data-val="expense">支出</button>' +
+            '<button class="seg-btn ' + (rankType === 'income' ? 'active' : '') + '" data-action="catrank-type" data-val="income">收入</button>' +
+          '</div></div><div id="dly-catrank"></div></div>' +
       '</div>';
 
     const dbe = $('#dly-bar');
@@ -953,6 +981,86 @@ window.Views = (() => {
           '<span class="asset-list-pct">' + (accTotal > 0 ? Math.round(x.value / accTotal * 100) : 0) + '%</span>' +
         '</div>').join('');
     } else ae.innerHTML = emptyHTML('💳', '暂无账户余额数据');
+
+    /* 一级分类排行：全部历史按金额降序 */
+    const rankEl = $('#dly-catrank');
+    renderCatRank(rankEl, rankType, '', '');
+  }
+
+  /* 一级分类排行渲染（日常 / 月 / 年 / 自定义共用） */
+  function renderCatRank(el, type, from, to) {
+    if (!el) return;
+    const rank = catAgg(type, from, to, 'root').filter(x => x.value > 0);
+    el.innerHTML = rank.length
+      ? rank.map(x => {
+          const cc = Store.getCategory(x.categoryId);
+          return '<button class="catrank-row" data-action="nav" data-nav="/category?id=' + x.categoryId + '">' +
+            '<span class="catrank-ico">' + UI.catIcon(cc ? cc.icon : 'box') + '</span>' +
+            '<span class="catrank-name">' + esc(cc ? cc.name : '其他') + '</span>' +
+            '<span class="catrank-val ' + (type === 'income' ? 'v-green' : 'v-red') + '">' + money(x.value) + '</span>' +
+          '</button>';
+        }).join('')
+      : emptyHTML('🍃', '该时间段暂无' + (type === 'income' ? '收入' : '支出') + '记录');
+  }
+
+  /* ---------- 分类专属页 ---------- */
+  function categoryPage(id) {
+    const v = $('#view');
+    const c = Store.getCategory(id);
+    if (!c) { App.nav('/home'); return; }
+    const cs = S().catStats;
+    let from = '', to = '';
+    if (cs.period === 'year') { from = cs.year + '-01-01'; to = cs.year + '-12-31'; }
+    else if (cs.period === 'month') { const { y, m } = UI.parseMonthKey(cs.monthKey); from = y + '-' + UI.pad(m) + '-01'; to = y + '-' + UI.pad(m) + '-' + UI.daysInMonth(y, m); }
+    else if (cs.period === 'custom') { from = cs.from || ''; to = cs.to || ''; if (from && to && from > to) to = from; }
+    const txs = Store.getTransactions({ from, to }).filter(t => {
+      if (t.categoryId === id) return true;
+      const cc = Store.getCategory(t.categoryId);
+      return cc && cc.parentId === id;
+    });
+    let inc = 0, exp = 0;
+    txs.forEach(t => { if (t.type === 'income') inc += t.amount; else if (t.type === 'expense') exp += t.amount; });
+    const groups = {};
+    txs.forEach(t => { (groups[t.date] = groups[t.date] || []).push(t); });
+    const keys = Object.keys(groups).sort((a, b) => (a < b ? 1 : -1));
+    const ctl =
+      '<div class="stat-ctl cat-ctl">' +
+        '<div class="seg seg-sm">' +
+          [['all', '全部'], ['year', '年'], ['month', '月'], ['custom', '自定义']].map(p =>
+            '<button class="seg-btn ' + (cs.period === p[0] ? 'active' : '') + '" data-action="cat-period" data-val="' + p[0] + '">' + p[1] + '</button>').join('') +
+        '</div>' +
+        (cs.period === 'year'
+          ? '<button class="btn btn-ghost btn-sm" data-action="cat-nav" data-d="-1">‹</button><span class="stat-ctl-label">' + cs.year + ' 年</span><button class="btn btn-ghost btn-sm" data-action="cat-nav" data-d="1">›</button>'
+          : cs.period === 'month'
+          ? '<button class="btn btn-ghost btn-sm" data-action="cat-nav" data-d="-1">‹</button><button class="stat-ctl-label" data-action="cat-today">' + UI.fmtMonthCn(cs.monthKey) + '</button><button class="btn btn-ghost btn-sm" data-action="cat-nav" data-d="1">›</button>'
+          : cs.period === 'custom'
+          ? '<input type="date" id="cat-from" value="' + esc(cs.from || '') + '" style="padding:6px 8px;border-radius:8px;border:1px solid var(--border);background:var(--input-bg);color:var(--text)"><span>至</span><input type="date" id="cat-to" value="' + esc(cs.to || '') + '" style="padding:6px 8px;border-radius:8px;border:1px solid var(--border);background:var(--input-bg);color:var(--text)">'
+          : '') +
+      '</div>';
+    v.innerHTML =
+      '<div class="page">' +
+        '<div class="page-head">' +
+          '<button class="btn btn-ghost btn-sm" data-action="nav" data-nav="/stats/daily">‹ 返回</button>' +
+          '<h1>' + UI.catIcon(c.icon) + ' ' + esc(c.name) + '</h1>' +
+        '</div>' +
+        '<div class="card stat-ctl-card">' + ctl +
+          '<div class="stat-summary">' +
+            '<span>收入 <b class="v-green">' + money(inc) + '</b></span>' +
+            '<span>支出 <b class="v-red">' + money(exp) + '</b></span>' +
+            '<span>结余 <b class="' + (inc - exp >= 0 ? 'v-green' : 'v-red') + '">' + money(inc - exp) + '</b></span>' +
+          '</div>' +
+        '</div>' +
+        '<div class="card bill-card">' +
+          '<div class="bill-head-row"><span class="bill-title">' + UI.icon('list', 15) + ' 账单明细（' + txs.length + ' 笔）</span></div>' +
+          (keys.length
+            ? keys.map(k =>
+                '<div class="tx-group flat">' +
+                  '<div class="tx-group-head"><span>' + UI.fmtDateCn(k) + ' ' + UI.weekday(k) + '</span></div>' +
+                  groups[k].map(txRow).join('') +
+                '</div>').join('')
+            : emptyHTML('📭', '该时间段暂无账单')) +
+        '</div>' +
+      '</div>';
   }
 
   /* ---------- 月统计 ---------- */
@@ -1477,7 +1585,7 @@ window.Views = (() => {
 
     /* 关于 */
     const aboutBody =
-      '<div class="about-name">🧾 轻账单 LiteBill<span class="about-ver">' + ((window.App && App.VERSION) || 'v1.80.0') + '</span></div>' +
+      '<div class="about-name">🧾 轻账单 LiteBill<span class="about-ver">' + ((window.App && App.VERSION) || 'v1.85.0') + '</span></div>' +
       '<div class="about-desc">本地优先的个人记账应用：记账、分类、账户、统计、预算、借贷、周期账单、语音记账、拍照识别、导入导出。数据不离开你的设备。</div>' +
       '<div class="about-update">' +
         '<button class="btn btn-primary btn-sm" data-action="check-update">🔄 检查更新</button>' +
@@ -2370,11 +2478,11 @@ window.Views = (() => {
     openMonthJump,
     openLoanModal, settleLoanModal, openRecurringModal,
     openVoiceModal, openOcrModal, fillRecord, openTextModal,
-    renderRecCats, renderRecSubs, renderRecAccs, renderDt, renderRecPanels, renderRecFnRow,
+    renderRecCats, renderRecSubs, renderRecAccs, renderDt, renderRecPanels, renderRecFnRow, updateAmountColor,
     updateDiscountCalc, updateDiscountHighlight, handleAttachFiles,
     openRecAccModal, openRecTimeModal,
     openImportModal, impHandleFile, renderImportMapping, showImpStep, doImport, search, loans, openLoanAccountModal,
-    openAccModal, openTransferModal, openCatModal, accountDetail, accMoreMenu, openRemindModal,
+    openAccModal, openTransferModal, openCatModal, accountDetail, accMoreMenu, openRemindModal, categoryPage,
     txRow, catOfId, typeLabel
   };
 })();

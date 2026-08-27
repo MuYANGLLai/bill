@@ -57,7 +57,7 @@ window.Charts = (() => {
     const svg = el('svg', { viewBox: '0 0 ' + size + ' ' + size, class: 'chart-svg' });
 
     if (total <= 0) {
-      svg.appendChild(el('circle', { cx, cy, r: (R + r) / 2, fill: 'none', stroke: 'var(--border-soft)', 'stroke-width': R - r }));
+      svg.appendChild(el('circle', { cx, cy, r: (R + r) / 2, fill: 'none', stroke: '#ffffff', 'stroke-width': R - r }));
     } else if (items.length === 1) {
       svg.appendChild(el('circle', { cx, cy, r: (R + r) / 2, fill: 'none', stroke: items[0].color, 'stroke-width': R - r }));
     } else {
@@ -107,7 +107,7 @@ window.Charts = (() => {
 
     for (let g = 0; g <= 4; g++) {
       const y = padT + plotH - (plotH * g / 4);
-      svg.appendChild(el('line', { x1: padL, y1: y, x2: W - padR, y2: y, stroke: 'var(--border-soft)', 'stroke-width': 1 }));
+      svg.appendChild(el('line', { x1: padL, y1: y, x2: W - padR, y2: y, stroke: '#ffffff', 'stroke-width': 1 }));
       const t = el('text', { x: padL - 6, y: y + 4, 'text-anchor': 'end', class: 'chart-axis' });
       t.textContent = fmtAxis(max * g / 4);
       svg.appendChild(t);
@@ -157,7 +157,7 @@ window.Charts = (() => {
       const v = min + span * g / 4;
       const y = padT + plotH - plotH * (v - min) / span;
       if (Math.abs(y - y0) < 2) continue;
-      svg.appendChild(el('line', { x1: padL, y1: y, x2: W - padR, y2: y, stroke: 'var(--border-soft)', 'stroke-width': 1 }));
+      svg.appendChild(el('line', { x1: padL, y1: y, x2: W - padR, y2: y, stroke: '#ffffff', 'stroke-width': 1 }));
       const t = el('text', { x: padL - 6, y: y + 4, 'text-anchor': 'end', class: 'chart-axis' });
       t.textContent = fmtAxis(v);
       svg.appendChild(t);
@@ -202,7 +202,7 @@ window.Charts = (() => {
 
     for (let g = 0; g <= 4; g++) {
       const y = padT + plotH - (plotH * g / 4);
-      svg.appendChild(el('line', { x1: padL, y1: y, x2: W - padR, y2: y, stroke: 'var(--border-soft)', 'stroke-width': 1 }));
+      svg.appendChild(el('line', { x1: padL, y1: y, x2: W - padR, y2: y, stroke: '#ffffff', 'stroke-width': 1 }));
       const t = el('text', { x: padL - 6, y: y + 4, 'text-anchor': 'end', class: 'chart-axis' });
       t.textContent = fmtAxis(max * g / 4);
       svg.appendChild(t);
