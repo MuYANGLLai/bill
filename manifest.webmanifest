@@ -3,6 +3,7 @@
   "short_name": "轻账单",
   "description": "本地优先的个人记账应用：记账、统计、预算、借贷、周期账单",
   "lang": "zh-CN",
+  "id": "./",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",

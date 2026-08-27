@@ -1583,9 +1583,35 @@ window.Views = (() => {
       '<input type="file" id="import-file" accept=".json,application/json" style="display:none">' +
       '<div class="data-tip">所有数据仅保存在本浏览器 localStorage 中，清除浏览器数据前请先导出备份。</div>';
 
+    /* 安装到桌面 */
+    let installBody = '';
+    const pwa = (window.App && App.getInstallState) ? App.getInstallState() : { installed: false, canInstall: false, ios: false };
+    if (pwa.installed) {
+      installBody = '<div class="data-tip" style="margin:0">✅ 已安装到桌面：从主屏幕图标打开，可全屏使用并离线缓存。</div>';
+    } else if (pwa.canInstall) {
+      installBody =
+        '<div class="data-actions">' +
+          '<button class="btn btn-primary" data-action="install-pwa">📲 安装到桌面</button>' +
+        '</div>' +
+        '<div class="data-tip">点击后按系统提示确认，即可在桌面生成轻账单图标（类似普通 App，可全屏、离线使用）。</div>';
+    } else if (pwa.ios) {
+      installBody =
+        '<div class="data-tip" style="line-height:1.9">iPhone / iPad 请按下面步骤添加到主屏幕：<br>' +
+        '① 用 <b>Safari 浏览器</b>打开本页<br>' +
+        '② 点底部「分享」按钮（方框＋向上箭头）<br>' +
+        '③ 选「添加到主屏幕」<br>' +
+        '④ 点右上角「添加」即可。</div>';
+    } else {
+      installBody =
+        '<div class="data-tip" style="line-height:1.9">请用手机浏览器菜单添加到桌面：<br>' +
+        '· Chrome / Edge：右上角 ⋮ →「安装应用」或「添加到主屏幕」<br>' +
+        '· 其他浏览器：菜单 →「添加到主屏幕 / 桌面」<br>' +
+        '· 若没有该选项，请用 Chrome 或 Safari 打开本页再试。</div>';
+    }
+
     /* 关于 */
     const aboutBody =
-      '<div class="about-name">🧾 轻账单 LiteBill<span class="about-ver">' + ((window.App && App.VERSION) || 'v1.85.0') + '</span></div>' +
+      '<div class="about-name">🧾 轻账单 LiteBill<span class="about-ver">' + ((window.App && App.VERSION) || 'v1.86.0') + '</span></div>' +
       '<div class="about-desc">本地优先的个人记账应用：记账、分类、账户、统计、预算、借贷、周期账单、语音记账、拍照识别、导入导出。数据不离开你的设备。</div>' +
       '<div class="about-update">' +
         '<button class="btn btn-primary btn-sm" data-action="check-update">🔄 检查更新</button>' +
@@ -1605,6 +1631,7 @@ window.Views = (() => {
         item('remind', 'time', '记账提醒', remindBody) +
         item('theme', 'palette', '外观', themeBody) +
         item('data', 'data', '数据管理', dataBody) +
+        item('install', 'home', '安装到桌面', installBody) +
         item('about', 'info', '关于', aboutBody) +
       '</div>';
   }

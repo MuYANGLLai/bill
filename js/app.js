@@ -6,7 +6,7 @@ window.App = (() => {
   const ymd = d => d.getFullYear() + '-' + UI.pad(d.getMonth() + 1) + '-' + UI.pad(d.getDate());
   const curWeekStart = () => { const d = new Date(); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); return ymd(d); };
 
-  const APP_VERSION = 'v1.85.0'; // 当前版本（与 sw.js 缓存名同步，bump 时一起更新）
+  const APP_VERSION = 'v1.86.0'; // 当前版本（与 sw.js 缓存名同步，bump 时一起更新）
 
   const state = {
     month: UI.monthKey(new Date().getFullYear(), new Date().getMonth() + 1),
@@ -1084,6 +1084,7 @@ window.App = (() => {
       case 'check-update': checkUpdate(); break;
       case 'update-from-url': updateFromUrl($('#update-url').value); break;
       case 'ico-upload': $('#ico-file').click(); break;
+      case 'install-pwa': installPwa(); break;
       default: break;
     }
   }
@@ -1184,6 +1185,26 @@ window.App = (() => {
     }
   }
 
+  /* ---------------- PWA 安装 ---------------- */
+  let deferredPrompt = null;
+  const isIOS = () => /iphone|ipad|ipod/i.test(navigator.userAgent || '') ||
+    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1); /* iPadOS Safari 桌面模式 */
+  const pwaInstalled = () =>
+    (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) ||
+    (navigator.standalone === true);
+  function getInstallState() {
+    return {
+      installed: pwaInstalled(),
+      canInstall: !!deferredPrompt && !pwaInstalled(),
+      ios: isIOS() && !pwaInstalled()
+    };
+  }
+  function installPwa() {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    deferredPrompt.userChoice.then(() => { deferredPrompt = null; render(); });
+  }
+
   /* ---------------- 启动 ---------------- */
   function init() {
     Store.load();
@@ -1193,6 +1214,13 @@ window.App = (() => {
     applyTheme();
     applyFont();
     bindEvents();
+    /* PWA：捕获系统安装提示（Chrome/Edge Android），可在设置页主动触发 */
+    window.addEventListener('beforeinstallprompt', e => {
+      e.preventDefault();
+      deferredPrompt = e;
+      render();
+    });
+    window.addEventListener('appinstalled', () => { deferredPrompt = null; render(); });
     render();
     setInterval(checkReminders, 30000);
     checkReminders();
@@ -1201,5 +1229,5 @@ window.App = (() => {
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
   else init();
 
-  return { state, nav, render, closeModal, pressKey, VERSION: APP_VERSION };
+  return { state, nav, render, closeModal, pressKey, VERSION: APP_VERSION, getInstallState, installPwa };
 })();
