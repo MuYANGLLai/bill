@@ -369,12 +369,12 @@ window.Views = (() => {
           '<div class="rec-tools">' +
             '<button class="btn btn-ghost btn-sm" data-action="voice">' + UI.icon('mic', 15) + ' 语音记账</button>' +
             '<button class="btn btn-ghost btn-sm" data-action="ocr">' + UI.icon('camera', 15) + ' 截图识别</button>' +
-            '<button class="btn btn-ghost btn-sm" data-action="text-bill">✏️ 文字记账</button>' +
+            '<button class="btn btn-ghost btn-sm" data-action="text-bill">' + UI.icon('pencil', 15) + ' 文字记账</button>' +
           '</div>' +
         '</div>' +
         '<div class="record-keypad">' +
           '<div class="rec-note-amt">' +
-            '<textarea id="rec-note" rows="2" placeholder="✏️ 备注（支持多行）…">' + esc(noteVal) + '</textarea>' +
+            '<textarea id="rec-note" rows="2" placeholder="备注（支持多行）…">' + esc(noteVal) + '</textarea>' +
             '<div class="amount-box amount-sm"><span class="amount-cur">¥</span><span id="rec-amount">' + esc(st.amount) + '</span></div>' +
           '</div>' +
           '<div class="rec-fn-row" id="rec-fn-row"></div>' +
@@ -1322,7 +1322,7 @@ window.Views = (() => {
 
     /* 关于 */
     const aboutBody =
-      '<div class="about-name">🧾 轻账单 LiteBill<span class="about-ver">' + ((window.App && App.VERSION) || 'v1.65.0') + '</span></div>' +
+      '<div class="about-name">🧾 轻账单 LiteBill<span class="about-ver">' + ((window.App && App.VERSION) || 'v1.66.0') + '</span></div>' +
       '<div class="about-desc">本地优先的个人记账应用：记账、分类、账户、统计、预算、借贷、周期账单、语音记账、拍照识别、导入导出。数据不离开你的设备。</div>' +
       '<div class="about-update">' +
         '<button class="btn btn-primary btn-sm" data-action="check-update">🔄 检查更新</button>' +
@@ -2047,7 +2047,14 @@ window.Views = (() => {
       statusEl.textContent = '正在加载识别引擎…';
       loadTesseract().then(T =>
         T.createWorker('chi_sim+eng', 1, {
-          logger: m => { if (m.status === 'recognizing text') statusEl.textContent = '正在识别（' + Math.round(m.progress * 100) + '%）…'; }
+          logger: m => {
+            const p = m.progress ? Math.round(m.progress * 100) : 0;
+            if (m.status === 'recognizing text') statusEl.textContent = '正在识别（' + p + '%）…';
+            else if (m.status === 'loading language traineddata') statusEl.textContent = '正在下载识别模型（' + p + '%）…';
+            else if (m.status === 'loading tesseract core') statusEl.textContent = '正在加载引擎核心（' + p + '%）…';
+            else if (m.status === 'initializing tesseract') statusEl.textContent = '正在初始化引擎…';
+            else if (m.status === 'loading tesseract core') statusEl.textContent = '正在加载引擎…';
+          }
         })
       ).then(worker =>
         worker.recognize(file).then(({ data }) => {
