@@ -75,9 +75,10 @@ window.Store = (() => {
         catPalette: 'macaron-2',
         catIconColor: false,     // 分类图标颜色开关：false = 全部黑色
         catColorVersion: 'macaron-1',
-        font: 'default'          // 字体：default | rounded | serif | hei | kai
+        font: 'default',         // 字体：default | rounded | serif | hei | kai
+        accOrder: true           // 账户页是否显示排序按钮
       },
-      accounts: Preset.defaultAccounts.map(a => ({ id: uid(), ...a })),
+      accounts: Preset.defaultAccounts.map(a => Object.assign({ id: uid(), includeAssets: true }, a)),
       categories: buildPresetCategories(),
       transactions: [],
       loans: [],
@@ -182,6 +183,9 @@ window.Store = (() => {
         }
         if (data.settings.catIconColor === undefined) data.settings.catIconColor = false;
         if (data.settings.font === undefined) data.settings.font = 'default';
+        if (data.settings.accOrder === undefined) data.settings.accOrder = true;
+        /* 迁移：账户「计入总资产」标记默认 true */
+        data.accounts.forEach(a => { if (a.includeAssets === undefined) a.includeAssets = true; });
         return data;
       }
     } catch (e) { persistOk = false; /* localStorage 不可用（如部分浏览器 file:// 模式）→ 使用内存数据 */ }
@@ -259,7 +263,7 @@ window.Store = (() => {
     return r2(b);
   }
 
-  const totalAssets = () => r2(data.accounts.reduce((s, a) => s + accountBalance(a.id), 0));
+  const totalAssets = () => r2(data.accounts.reduce((s, a) => s + (a.includeAssets === false ? 0 : accountBalance(a.id)), 0));
 
   /* ---------- 账单 ---------- */
   function addTransaction(t) { t.id = uid(); t.createdAt = Date.now(); data.transactions.push(t); save(); return t; }

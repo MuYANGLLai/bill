@@ -632,6 +632,7 @@ window.Views = (() => {
   function statsRange(o) {
     const v = $('#view');
     const s = S().stats;
+    const skMode = s.skMode || 'amt';
     const txs = Store.getTransactions({ from: o.from, to: o.to });
     let income = 0, expense = 0;
     txs.forEach(t => { if (t.excludeStats) return; if (t.type === 'income') income += t.amount; else if (t.type === 'expense') expense += t.amount; });
@@ -723,7 +724,11 @@ window.Views = (() => {
         /* 资产走势 */
         '<div class="card"><div class="card-title">资产走势（' + (o.unit === 'day' ? '每日' : '每月') + '末）</div><div id="stat-assets"></div></div>' +
         /* 收支对比 */
-        '<div class="card"><div class="card-title"><span>收支对比</span>' + catSeg() + '</div><div id="stat-sankey"></div></div>' +
+        '<div class="card"><div class="card-title"><span>收支对比</span>' +
+          '<div class="seg seg-sm">' +
+            '<button class="seg-btn ' + (skMode === 'amt' ? 'active' : '') + '" data-action="stat-sk" data-val="amt">金额</button>' +
+            '<button class="seg-btn ' + (skMode === 'pct' ? 'active' : '') + '" data-action="stat-sk" data-val="pct">占比</button>' +
+          '</div>' + catSeg() + '</div><div id="stat-sankey"></div></div>' +
         /* 收支占比（参考日统计：小圆环 + 右侧清单） */
         '<div class="card"><div class="card-title"><span>收支占比（' + (s.type === 'income' ? '收入' : '支出') + '）</span>' + typeSeg() + catSeg() + '</div>' +
           '<div class="asset-donut-row">' +
@@ -755,7 +760,7 @@ window.Views = (() => {
     if (txs.length) Charts.line(ae, [{ name: '资产', color: '#BAE1FF', values: assetsSeries.map(a => a.value) }], { labels: assetsSeries.map(a => a.label) });
     else ae.innerHTML = emptyHTML('🍃', '该时间段暂无收支记录');
 
-    /* 收支对比：桑基式——分类分开，浅色虚线引导连接 */
+    /* 收支对比：左右占比柱 + 分类名以分类色虚线连接柱中对应段 */
     const se = $('#stat-sankey');
     const skTop = cats => {
       const list = cats.slice(0, 8).map(x => ({ label: Store.categoryLabel(x.categoryId), value: x.value }));
@@ -765,32 +770,48 @@ window.Views = (() => {
     };
     const incTop = skTop(incCats);
     const expTop = skTop(expCats);
-    const skCol = (title, cls, items, dotSide) =>
-      '<div class="sk-col">' +
-        '<div class="sk-title ' + cls + '">' + title + '</div>' +
-        '<div class="sk-nodes">' +
-          (items.length
-            ? items.map((x, i) => {
-                const c = Preset.macaron[i % Preset.macaron.length];
-                const dash = '<i class="sk-line" style="background:repeating-linear-gradient(90deg,' + c + ' 0 5px,transparent 5px 9px)"></i>';
-                return '<div class="sk-node">' +
-                  (dotSide === 'left'
-                    ? '<span class="sk-dot" style="background:' + c + '"></span><span class="sk-name">' + esc(x.label) + '</span>' + dash + '<span class="sk-val">' + money(x.value) + '</span>'
-                    : '<span class="sk-val">' + money(x.value) + '</span>' + dash + '<span class="sk-name">' + esc(x.label) + '</span><span class="sk-dot" style="background:' + c + '"></span>') +
-                '</div>';
-              }).join('')
-            : '<div class="data-tip">无记录</div>') +
-        '</div>' +
-      '</div>';
+    const skSide = (title, cls, items, side) => {
+      const total = items.reduce((s, x) => s + x.value, 0) || 1;
+      const rows = items.map((x, i) => {
+        const c = Preset.macaron[i % Preset.macaron.length];
+        const pct = Math.round(x.value / total * 100);
+        const dot = '<span class="sk2-dot" style="background:' + c + '"></span>';
+        const name = '<span class="sk2-name">' + esc(x.label) + '</span>';
+        const val = '<span class="sk2-val">' +
+          (skMode === 'pct' ? '<em>' + pct + '%</em>' : '<em>¥' + Math.round(x.value) + '</em>') + '</span>';
+        return '<div class="sk2-label' + (side === 'right' ? ' sk2-r' : '') + '" style="flex:' + x.value + '">' +
+          (side === 'left' ? dot + name + val : val + name + dot) + '</div>';
+      }).join('');
+      const lines = items.map((x, i) =>
+        '<i class="sk2-line" style="flex:' + x.value + ';border-color:' + Preset.macaron[i % Preset.macaron.length] + '"></i>').join('');
+      const bar = items.map((x, i) =>
+        '<i class="sk2-seg" style="flex:' + x.value + ';background:' + Preset.macaron[i % Preset.macaron.length] + '" title="' + esc(x.label) + '：' + money(x.value) + '（' + Math.round(x.value / total * 100) + '%）"></i>').join('');
+      return {
+        html: '<div class="sk2-title ' + cls + '">' + title + '</div>' +
+          (side === 'right'
+            ? '<div class="sk2-body">' +
+                '<div class="sk2-bar">' + bar + '</div>' +
+                '<div class="sk2-lines">' + lines + '</div>' +
+                '<div class="sk2-labels">' + (rows || '<div class="data-tip">无记录</div>') + '</div>' +
+              '</div>'
+            : '<div class="sk2-body">' +
+                '<div class="sk2-labels">' + (rows || '<div class="data-tip">无记录</div>') + '</div>' +
+                '<div class="sk2-lines">' + lines + '</div>' +
+                '<div class="sk2-bar">' + bar + '</div>' +
+              '</div>')
+      };
+    };
+    const inc = skSide('收入', 'v-green', incTop, 'left');
+    const exp = skSide('支出', 'v-red', expTop, 'right');
     se.innerHTML = (incTotal + expTotal) > 0
-      ? '<div class="sankey2">' +
-          skCol('收入', 'v-green', incTop, 'left') +
-          '<div class="sk-mid">' +
-            '<div class="sk-sum v-green">' + money(incTotal) + '</div>' +
-            '<div class="sk-spine"></div>' +
-            '<div class="sk-sum v-red">' + money(expTotal) + '</div>' +
+      ? '<div class="sk2">' +
+          '<div class="sk2-side">' + inc.html + '</div>' +
+          '<div class="sk2-mid">' +
+            '<span class="v-green">' + money(incTotal) + '</span>' +
+            '<span class="sk2-arrow">⇄</span>' +
+            '<span class="v-red">' + money(expTotal) + '</span>' +
           '</div>' +
-          skCol('支出', 'v-red', expTop, 'right') +
+          '<div class="sk2-side sk2-side-r">' + exp.html + '</div>' +
         '</div>'
       : emptyHTML('🍃', '该时间段暂无收支记录');
 
@@ -1097,16 +1118,25 @@ window.Views = (() => {
     const accs = Store.getAccounts();
     const sums = Store.loanSums();
     const accOpen = S().accOpen || { acc: true };
+    const orderOn = Store.data.settings.accOrder !== false;
     const accBody = accs.length
-      ? '<div class="acc-grid">' + accs.map(a => {
+      ? '<div class="acc-grid">' + accs.map((a, i) => {
           const bal = Store.accountBalance(a.id);
           const t = Preset.accountTypes[a.type] || Preset.accountTypes.other;
-          return '<button class="acc-card" data-action="edit-acc" data-val="' + a.id + '">' +
-            '<span class="acc-ico" style="background:' + (a.color || '#2f9e44') + '">' + UI.catIcon(a.icon) + '</span>' +
-            '<span class="acc-main"><span class="acc-name">' + esc(a.name) + (a.hidden ? ' <em class="acc-hidden">已隐藏</em>' : '') + '</span>' +
-            '<span class="acc-type">' + t.name + '</span></span>' +
-            '<span class="acc-bal">' + money(bal) + '</span>' +
-          '</button>';
+          return '<div class="acc-row">' +
+            '<button class="acc-card" data-action="edit-acc" data-val="' + a.id + '" data-acc-id="' + a.id + '">' +
+              '<span class="acc-ico" style="background:' + (a.color || '#2f9e44') + '">' + UI.catIcon(a.icon) + '</span>' +
+              '<span class="acc-main"><span class="acc-name">' + esc(a.name) + (a.hidden ? ' <em class="acc-hidden">已隐藏</em>' : '') + '</span>' +
+              '<span class="acc-type">' + t.name + '</span></span>' +
+              '<span class="acc-bal">' + money(bal) + '</span>' +
+            '</button>' +
+            (orderOn
+              ? '<span class="acc-order">' +
+                  '<button class="acc-order-btn" data-action="acc-move" data-d="-1" data-val="' + a.id + '"' + (i === 0 ? ' disabled' : '') + '>↑</button>' +
+                  '<button class="acc-order-btn" data-action="acc-move" data-d="1" data-val="' + a.id + '"' + (i === accs.length - 1 ? ' disabled' : '') + '>↓</button>' +
+                '</span>'
+              : '') +
+          '</div>';
         }).join('') + '</div>'
       : '<div class="data-tip" style="padding:6px 0">还没有账户，点右上角「新账户」创建</div>';
     v.innerHTML =
@@ -1114,6 +1144,7 @@ window.Views = (() => {
         '<div class="page-head"><h1>账户管理</h1>' +
           '<div class="head-actions">' +
             '<button class="btn btn-ghost btn-sm" data-action="open-transfer">⇄ 转账</button>' +
+            '<button class="btn ' + (orderOn ? 'btn-primary' : 'btn-ghost') + ' btn-sm" data-action="acc-order-toggle">排序' + (orderOn ? ' ✓' : '') + '</button>' +
             '<button class="btn btn-primary btn-sm btn-macaron" data-action="add-acc">＋ 新账户</button>' +
           '</div></div>' +
         '<div class="card assets-card"><div class="assets-label">总资产</div><div class="assets-val">' + money(Store.totalAssets()) + '</div></div>' +
@@ -1135,6 +1166,7 @@ window.Views = (() => {
           '<div class="set-body"' + (accOpen.acc ? '' : ' style="display:none"') + '>' + accBody + '</div>' +
         '</div>' +
       '</div>';
+    /* 账户拖拽排序 */
   }
 
   /* ---------- 账户弹窗 ---------- */
@@ -1174,6 +1206,7 @@ window.Views = (() => {
       fold('color', '颜色', colorBody) +
       '<div class="field"><label>初始余额（¥）</label><input type="number" id="acc-balance" step="0.01" value="' + (a ? String(a.initialBalance) : '0') + '"></div>' +
       '<label class="check"><input type="checkbox" id="acc-hidden"' + (a && a.hidden ? ' checked' : '') + '> 隐藏该账户（不参与统计与选择列表）</label>' +
+      '<label class="check"><input type="checkbox" id="acc-assets"' + (a && a.includeAssets === false ? '' : ' checked') + '> 计入总资产</label>' +
       '<div class="modal-actions">' +
         (a ? '<button class="btn btn-danger" data-action="del-acc" data-val="' + a.id + '">删除</button>' : '') +
         '<button class="btn btn-ghost" data-action="modal-close">取消</button>' +
@@ -1322,12 +1355,17 @@ window.Views = (() => {
 
     /* 关于 */
     const aboutBody =
-      '<div class="about-name">🧾 轻账单 LiteBill<span class="about-ver">' + ((window.App && App.VERSION) || 'v1.66.0') + '</span></div>' +
+      '<div class="about-name">🧾 轻账单 LiteBill<span class="about-ver">' + ((window.App && App.VERSION) || 'v1.76.0') + '</span></div>' +
       '<div class="about-desc">本地优先的个人记账应用：记账、分类、账户、统计、预算、借贷、周期账单、语音记账、拍照识别、导入导出。数据不离开你的设备。</div>' +
       '<div class="about-update">' +
         '<button class="btn btn-primary btn-sm" data-action="check-update">🔄 检查更新</button>' +
-        '<span class="data-tip">从当前打开的网页地址获取最新版，发现新版本会自动下载并刷新，无需移除图标。</span>' +
-      '</div>';
+        '<span class="data-tip">从当前打开的网页地址获取最新版，自动下载并刷新，无需移除图标。</span>' +
+      '</div>' +
+      '<div class="update-url-row">' +
+        '<input type="url" id="update-url" placeholder="填入更新源网址（如新的临时地址/永久地址）">' +
+        '<button class="btn btn-primary btn-sm" data-action="update-from-url">从网址更新</button>' +
+      '</div>' +
+      '<div class="data-tip">隧道或地址更换后，把最新版所在的网址填到上面，即可从该网址更新到最新版。</div>';
 
     v.innerHTML =
       '<div class="page">' +

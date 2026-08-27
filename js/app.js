@@ -6,7 +6,7 @@ window.App = (() => {
   const ymd = d => d.getFullYear() + '-' + UI.pad(d.getMonth() + 1) + '-' + UI.pad(d.getDate());
   const curWeekStart = () => { const d = new Date(); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); return ymd(d); };
 
-  const APP_VERSION = 'v1.66.0'; // 当前版本（与 sw.js 缓存名同步，bump 时一起更新）
+  const APP_VERSION = 'v1.76.0'; // 当前版本（与 sw.js 缓存名同步，bump 时一起更新）
 
   const state = {
     month: UI.monthKey(new Date().getFullYear(), new Date().getMonth() + 1),
@@ -23,7 +23,7 @@ window.App = (() => {
       excludeStats: false, excludeBudget: false, attrPanel: false, attachPanel: false, attachments: []
     },
     filters: { type: 'all', cat: 'all', acc: 'all', kw: '' },
-    stats: { monthKey: UI.monthKey(new Date().getFullYear(), new Date().getMonth() + 1), year: new Date().getFullYear(), from: '', to: '', bar: 'expense', cat: 'root', type: 'expense', dailyBar: 'expense' },
+    stats: { monthKey: UI.monthKey(new Date().getFullYear(), new Date().getMonth() + 1), year: new Date().getFullYear(), from: '', to: '', bar: 'expense', cat: 'root', type: 'expense', dailyBar: 'expense', skMode: 'amt' },
     settingsCatType: 'expense',
     settingsOpen: { cat: false, rec: false, theme: false, data: false, about: false },
     accOpen: { acc: true },
@@ -313,7 +313,8 @@ window.App = (() => {
       icon: box.dataset.accEmoji || 'cash',
       color: box.dataset.accColor || '#FFB3BA',
       initialBalance: Math.round((parseFloat($('#acc-balance').value) || 0) * 100) / 100,
-      hidden: $('#acc-hidden').checked
+      hidden: $('#acc-hidden').checked,
+      includeAssets: $('#acc-assets').checked
     };
     if (id) Store.updateAccount(id, patch); else Store.addAccount(patch);
     closeModal();
@@ -676,6 +677,53 @@ window.App = (() => {
     });
   }
 
+  /* 从指定网址更新：跨域拉取该源全部静态文件缓存到本地后刷新 */
+  const UPDATE_FILES = [
+    'index.html', 'manifest.webmanifest', 'sw.js', 'css/style.css',
+    'js/preset.js', 'js/store.js', 'js/ui.js', 'js/charts.js', 'js/views.js', 'js/app.js',
+    'icons/icon-192.png', 'icons/icon-512.png'
+  ];
+  async function updateFromUrl(url) {
+    const base = String(url || '').trim().replace(/\/+$/, '');
+    if (!/^https?:\/\//.test(base)) { UI.toast('请输入有效的网址（https://…）', 'err'); return; }
+    try {
+      UI.toast('正在检查更新源…');
+      const res = await fetch(base + '/index.html', { cache: 'no-store' });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const html = await res.text();
+      const m = html.match(/v1\.\d+\.\d+/);
+      const ver = m ? m[0] : null;
+      if (!ver) { UI.toast('该网址不是轻账单应用', 'err'); return; }
+      if (ver === APP_VERSION) { UI.toast('已是最新版本 ' + ver); return; }
+      if (!('caches' in window)) { UI.toast('当前环境不支持缓存更新，请直接用该网址打开', 'err'); return; }
+      UI.toast('发现新版本 ' + ver + '，正在下载更新…');
+      /* 当前应用的目录（不含 hash），用于缓存键对齐 SW 请求 */
+      const baseDir = location.origin + location.pathname.slice(0, location.pathname.lastIndexOf('/') + 1);
+      /* 第一步：先把全部文件下载到内存，任何一个失败都中止（不碰现有缓存） */
+      const files = [];
+      for (const f of UPDATE_FILES) {
+        const r = await fetch(base + '/' + f, { cache: 'no-store' });
+        if (!r.ok) throw new Error('文件下载失败：' + f);
+        files.push({ f, r });
+      }
+      /* 第二步：全部成功才写入新缓存 */
+      const cache = await caches.open('litebill-' + ver);
+      for (const { f, r } of files) await cache.put(new Request(baseDir + f), r);
+      /* 第三步：验证缓存可读 */
+      for (const f of UPDATE_FILES) {
+        const hit = await cache.match(baseDir + f);
+        if (!hit) throw new Error('缓存验证失败：' + f);
+      }
+      /* 第四步：才删除旧缓存并刷新 */
+      const keys = await caches.keys();
+      await Promise.all(keys.filter(k => k.indexOf('litebill-') === 0 && k !== 'litebill-' + ver).map(k => caches.delete(k)));
+      UI.toast('更新完成（' + files.length + ' 个文件），正在刷新…');
+      setTimeout(() => location.reload(), 900);
+    } catch (e) {
+      UI.toast('更新失败：' + (e && e.message ? e.message : '网络异常或源不允许跨域读取'), 'err');
+    }
+  }
+
   function handleAction(el) {
     const act = el.dataset.action;
     const val = el.dataset.val;
@@ -847,9 +895,28 @@ window.App = (() => {
       case 'dly-bar': state.stats.dailyBar = val; Views.statsDaily(); break;
       case 'stat-type': state.stats.type = val; statsRefresh(); break;
       case 'stat-cat': state.stats.cat = val; statsRefresh(); break;
+      case 'stat-sk': state.stats.skMode = val; statsRefresh(); break;
       case 'budget-total-save': saveBudgetTotal(); break;
       case 'add-acc': Views.openAccModal(null); break;
       case 'edit-acc': Views.openAccModal(val); break;
+      case 'acc-move': {
+        const list = Store.data.accounts;
+        const i = list.findIndex(x => x.id === val);
+        const d = parseInt(el.dataset.d, 10);
+        const j = i + d;
+        if (i < 0 || j < 0 || j >= list.length) break;
+        const moved = list.splice(i, 1)[0];
+        list.splice(j, 0, moved);
+        Store.save();
+        Views.accounts();
+        break;
+      }
+      case 'acc-order-toggle':
+        Store.data.settings.accOrder = Store.data.settings.accOrder === false;
+        Store.save();
+        UI.toast(Store.data.settings.accOrder ? '已显示排序按钮' : '已隐藏排序按钮');
+        Views.accounts();
+        break;
       case 'save-acc': saveAcc(val || null); break;
       case 'del-acc': delAcc(val); break;
       case 'open-transfer': Views.openTransferModal(); break;
@@ -919,6 +986,7 @@ window.App = (() => {
       case 'clear-all': clearAll(); break;
       case 'modal-close': closeModal(); break;
       case 'check-update': checkUpdate(); break;
+      case 'update-from-url': updateFromUrl($('#update-url').value); break;
       case 'ico-upload': $('#ico-file').click(); break;
       default: break;
     }
