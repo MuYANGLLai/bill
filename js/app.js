@@ -6,7 +6,7 @@ window.App = (() => {
   const ymd = d => d.getFullYear() + '-' + UI.pad(d.getMonth() + 1) + '-' + UI.pad(d.getDate());
   const curWeekStart = () => { const d = new Date(); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); return ymd(d); };
 
-  const APP_VERSION = 'v1.76.0'; // 当前版本（与 sw.js 缓存名同步，bump 时一起更新）
+  const APP_VERSION = 'v1.78.0'; // 当前版本（与 sw.js 缓存名同步，bump 时一起更新）
 
   const state = {
     month: UI.monthKey(new Date().getFullYear(), new Date().getMonth() + 1),
@@ -68,6 +68,7 @@ window.App = (() => {
     else if (path === '/calendar') Views.calendar();
     else if (path === '/budget') Views.budget();
     else if (path === '/accounts') Views.accounts();
+    else if (path === '/account') Views.accountDetail(new URLSearchParams(qs || '').get('id'));
     else if (path === '/loans') Views.loans();          // 借贷专属页
     else if (path === '/search') Views.search();        // 搜索页
     else if (path === '/recurring') nav('/settings');   // 周期已并入设置页
@@ -898,6 +899,10 @@ window.App = (() => {
       case 'stat-sk': state.stats.skMode = val; statsRefresh(); break;
       case 'budget-total-save': saveBudgetTotal(); break;
       case 'add-acc': Views.openAccModal(null); break;
+      case 'go-acc': nav('/account?id=' + val); break;
+      case 'acc-more': Views.accMoreMenu(val); break;
+      case 'acc-edit': closeModal(); Views.openAccModal(val); break;
+      case 'acc-del': closeModal(); delAcc(val); break;
       case 'edit-acc': Views.openAccModal(val); break;
       case 'acc-move': {
         const list = Store.data.accounts;

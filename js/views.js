@@ -373,6 +373,11 @@ window.Views = (() => {
           '</div>' +
         '</div>' +
         '<div class="record-keypad">' +
+          /* 历史备注联想栏（备注框上方） */
+          '<div class="rec-note-history" id="rec-note-history" style="display:none">' +
+            '<div class="rec-note-history-head"></div>' +
+            '<div class="rec-note-history-list"></div>' +
+          '</div>' +
           '<div class="rec-note-amt">' +
             '<textarea id="rec-note" rows="2" placeholder="备注（支持多行）…">' + esc(noteVal) + '</textarea>' +
             '<div class="amount-box amount-sm"><span class="amount-cur">¥</span><span id="rec-amount">' + esc(st.amount) + '</span></div>' +
@@ -412,6 +417,46 @@ window.Views = (() => {
     renderRecAccs();
     renderRecFnRow();
     renderRecPanels();
+    bindRecNoteHistory();
+  }
+
+  /* 历史备注联想：按当前分类检索，按时间倒序，可滚动选择 */
+  function renderRecNoteHistory() {
+    const st = S().record;
+    const box = $('#rec-note-history');
+    if (!box || !st.categoryId || st.type === 'transfer') { if (box) box.style.display = 'none'; return; }
+    const seen = new Set();
+    const list = [];
+    Store.data.transactions.forEach(t => {
+      if (t.categoryId !== st.categoryId || !t.note) return;
+      const n = String(t.note).trim();
+      if (!n || seen.has(n)) return;
+      seen.add(n);
+      list.push({ note: n, sort: t.date + ' ' + (t.time || '') });
+    });
+    list.sort((a, b) => (a.sort < b.sort ? 1 : -1));
+    if (!list.length) { box.style.display = 'none'; return; }
+    const catName = (Store.getCategory(st.categoryId) || {}).name || '';
+    box.querySelector('.rec-note-history-head').textContent = '历史备注（' + catName + '，' + list.length + '）';
+    const listEl = box.querySelector('.rec-note-history-list');
+    listEl.innerHTML = list.map(x =>
+      '<button type="button" class="rec-note-hist-item" data-note="' + esc(x.note) + '">' + esc(x.note) + '</button>').join('');
+    box.style.display = 'block';
+  }
+
+  function bindRecNoteHistory() {
+    const noteEl = $('#rec-note');
+    const box = $('#rec-note-history');
+    if (!noteEl || !box) return;
+    noteEl.addEventListener('focus', renderRecNoteHistory);
+    noteEl.addEventListener('input', renderRecNoteHistory);
+    noteEl.addEventListener('blur', () => setTimeout(() => { box.style.display = 'none'; }, 150));
+    box.querySelector('.rec-note-history-list').addEventListener('click', e => {
+      const it = e.target.closest('.rec-note-hist-item');
+      if (!it) return;
+      $('#rec-note').value = it.dataset.note;
+      box.style.display = 'none';
+    });
   }
 
   /* 功能栏：账户键显示所选账户图标+名称 */
@@ -1124,7 +1169,7 @@ window.Views = (() => {
           const bal = Store.accountBalance(a.id);
           const t = Preset.accountTypes[a.type] || Preset.accountTypes.other;
           return '<div class="acc-row">' +
-            '<button class="acc-card" data-action="edit-acc" data-val="' + a.id + '" data-acc-id="' + a.id + '">' +
+            '<button class="acc-card" data-action="go-acc" data-val="' + a.id + '" data-acc-id="' + a.id + '">' +
               '<span class="acc-ico" style="background:' + (a.color || '#2f9e44') + '">' + UI.catIcon(a.icon) + '</span>' +
               '<span class="acc-main"><span class="acc-name">' + esc(a.name) + (a.hidden ? ' <em class="acc-hidden">已隐藏</em>' : '') + '</span>' +
               '<span class="acc-type">' + t.name + '</span></span>' +
@@ -1167,6 +1212,61 @@ window.Views = (() => {
         '</div>' +
       '</div>';
     /* 账户拖拽排序 */
+  }
+
+  /* ---------- 账户详情页 ---------- */
+  function accountDetail(id) {
+    const v = $('#view');
+    const a = Store.getAccount(id);
+    if (!a) { App.nav('/accounts'); return; }
+    const all = Store.getTransactions({});
+    const txs = all.filter(t => t.accountId === id || t.toAccountId === id);
+    let inc = 0, exp = 0;
+    txs.forEach(t => { if (t.type === 'income') inc += t.amount; else if (t.type === 'expense') exp += t.amount; });
+    const groups = {};
+    txs.forEach(t => { (groups[t.date] = groups[t.date] || []).push(t); });
+    const keys = Object.keys(groups).sort((x, y) => (x < y ? 1 : -1));
+    v.innerHTML =
+      '<div class="page acc-page">' +
+        '<div class="page-head">' +
+          '<button class="btn btn-ghost btn-sm" data-action="nav" data-nav="/accounts">‹ 账户</button>' +
+          '<button class="btn btn-ghost btn-sm" data-action="acc-more" data-val="' + id + '">⋮</button>' +
+        '</div>' +
+        '<div class="card assets-card acc-detail-head">' +
+          '<span class="acc-ico" style="background:' + (a.color || '#2f9e44') + '">' + UI.catIcon(a.icon) + '</span>' +
+          '<div class="acc-detail-main">' +
+            '<div class="acc-detail-name">' + esc(a.name) + (a.hidden ? ' <em class="acc-hidden">已隐藏</em>' : '') + '</div>' +
+            '<div class="acc-detail-type">' + ((Preset.accountTypes[a.type] || {}).name || '') + '</div>' +
+          '</div>' +
+          '<div class="acc-detail-bal">余额 <b>' + money(Store.accountBalance(id)) + '</b></div>' +
+        '</div>' +
+        '<div class="stat-grid" style="margin-bottom:10px">' +
+          statCard('总收入', money(inc), 'v-green') +
+          statCard('总支出', money(exp), 'v-red') +
+          statCard('结余', money(inc - exp), inc >= exp ? 'v-green' : 'v-red') +
+        '</div>' +
+        '<div class="card bill-card">' +
+          '<div class="bill-head-row"><span class="bill-title">' + UI.icon('list', 15) + ' 账户账单（' + txs.length + ' 笔）</span></div>' +
+          (keys.length
+            ? keys.map(k =>
+                '<div class="tx-group flat">' +
+                  '<div class="tx-group-head"><span>' + UI.fmtDateCn(k) + ' ' + UI.weekday(k) + '</span></div>' +
+                  groups[k].map(txRow).join('') +
+                '</div>').join('')
+            : emptyHTML('📭', '该账户暂无账单')) +
+        '</div>' +
+      '</div>';
+  }
+
+  /* 账户 ⋮ 菜单 */
+  function accMoreMenu(id) {
+    const a = Store.getAccount(id);
+    if (!a) return;
+    UI.modal('账户操作',
+      '<div class="menu-list">' +
+        '<button class="menu-item" data-action="acc-edit" data-val="' + id + '">✏️ 编辑账户</button>' +
+        '<button class="menu-item" data-action="acc-del" data-val="' + id + '">🗑 删除账户</button>' +
+      '</div>');
   }
 
   /* ---------- 账户弹窗 ---------- */
@@ -1355,7 +1455,7 @@ window.Views = (() => {
 
     /* 关于 */
     const aboutBody =
-      '<div class="about-name">🧾 轻账单 LiteBill<span class="about-ver">' + ((window.App && App.VERSION) || 'v1.76.0') + '</span></div>' +
+      '<div class="about-name">🧾 轻账单 LiteBill<span class="about-ver">' + ((window.App && App.VERSION) || 'v1.78.0') + '</span></div>' +
       '<div class="about-desc">本地优先的个人记账应用：记账、分类、账户、统计、预算、借贷、周期账单、语音记账、拍照识别、导入导出。数据不离开你的设备。</div>' +
       '<div class="about-update">' +
         '<button class="btn btn-primary btn-sm" data-action="check-update">🔄 检查更新</button>' +
@@ -2205,7 +2305,7 @@ window.Views = (() => {
     updateDiscountCalc, updateDiscountHighlight, handleAttachFiles,
     openRecAccModal, openRecTimeModal,
     openImportModal, impHandleFile, renderImportMapping, showImpStep, doImport, search, loans, openLoanAccountModal,
-    openAccModal, openTransferModal, openCatModal,
+    openAccModal, openTransferModal, openCatModal, accountDetail, accMoreMenu,
     txRow, catOfId, typeLabel
   };
 })();
