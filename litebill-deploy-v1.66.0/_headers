@@ -1,6 +1,0 @@
-# 轻账单 Netlify 部署头：让 Service Worker 不被缓存，保证「检查更新」及时生效
-/sw.js
-  Cache-Control: no-cache
-
-/index.html
-  Cache-Control: no-cache
