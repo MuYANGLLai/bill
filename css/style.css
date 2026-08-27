@@ -717,18 +717,20 @@ body.is-record .view { padding: 0; max-width: none; }
   width: auto; margin: 0 -14px;   /* 横向铺满屏幕 */
   background: var(--card); border: 1px solid var(--border);
   border-radius: 16px 16px 0 0;
-  padding: 8px 12px calc(8px + env(safe-area-inset-bottom));
+  padding: 5px 12px calc(5px + env(safe-area-inset-bottom));
   box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.06);
 }
 /* 键盘竖直方向收窄 */
-.record-keypad .key { height: 42px; font-size: 19px; }
-.record-keypad .key-num { font-size: 21px; }
-.record-keypad .keypad { gap: 5px; }
-.record-keypad .rec-fn-btn { padding: 4px 2px 3px; }
+.record-keypad .key { height: 38px; font-size: 18px; }
+.record-keypad .key-num { font-size: 20px; }
+.record-keypad .keypad { gap: 4px; margin-top: 4px; }
+.record-keypad .rec-fn-btn { padding: 3px 2px 2px; }
 .record-keypad .rec-fn-btn .fn-ico { font-size: 15px; }
-.record-keypad .rec-note-amt { margin-bottom: 6px; }
-.record-keypad .rec-note-amt input, .record-keypad .rec-note-amt textarea { padding: 5px 10px; }
-.record-keypad .amount-sm { padding: 0 2px 6px; min-height: 30px; font-size: 24px; }
+.record-keypad .rec-fn-row { gap: 4px; margin-bottom: 5px; }
+.record-keypad .rec-note-amt { margin-bottom: 4px; }
+.record-keypad .rec-note-amt input, .record-keypad .rec-note-amt textarea { padding: 4px 10px; }
+.record-keypad .amount-sm { padding: 0 2px 4px; min-height: 26px; font-size: 23px; }
+.record-keypad .rec-note-history-list { max-height: 108px; }
 /* 桌面端键盘仍居中限宽，避免按键过宽 */
 @media (min-width: 901px) {
   .record-keypad { width: min(640px, calc(100% - 28px)); margin: 0 auto; border-radius: 16px; }

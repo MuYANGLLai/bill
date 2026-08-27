@@ -335,6 +335,8 @@ window.Views = (() => {
         st.excludeStats = !!tx.excludeStats;
         st.excludeBudget = !!tx.excludeBudget;
         st.attachments = tx.attachments || [];
+        st.note = tx.note || '';
+        st.merchant = tx.merchant || '';
         st.attrPanel = st.excludeStats || st.excludeBudget;
       }
     } else {
@@ -1455,7 +1457,7 @@ window.Views = (() => {
 
     /* 关于 */
     const aboutBody =
-      '<div class="about-name">🧾 轻账单 LiteBill<span class="about-ver">' + ((window.App && App.VERSION) || 'v1.78.0') + '</span></div>' +
+      '<div class="about-name">🧾 轻账单 LiteBill<span class="about-ver">' + ((window.App && App.VERSION) || 'v1.79.0') + '</span></div>' +
       '<div class="about-desc">本地优先的个人记账应用：记账、分类、账户、统计、预算、借贷、周期账单、语音记账、拍照识别、导入导出。数据不离开你的设备。</div>' +
       '<div class="about-update">' +
         '<button class="btn btn-primary btn-sm" data-action="check-update">🔄 检查更新</button>' +
