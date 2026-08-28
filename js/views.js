@@ -16,13 +16,40 @@ window.Views = (() => {
 
   function catOfId(id) { const c = Store.getCategory(id); return c || { name: '未分类', icon: 'box', color: '#adb5bd' }; }
   function typeLabel(t) { return t.type === 'expense' ? '支出' : t.type === 'income' ? '收入' : '转账'; }
+
+  /* 欢迎语：按时段问候 + 心灵鸡汤（无 emoji） */
+  const QUOTES_MORNING = [
+    '一日之计在于晨，记下今天的第一笔',
+    '美好的一天，从清楚的账目开始',
+    '早起的人，连账本都是清醒的',
+    '今天的你，比昨天更懂生活',
+    '按时记账，让日子有迹可循'
+  ];
+  const QUOTES_DAY = [
+    '每一笔记录，都是认真生活的证据',
+    '会记账的人，运气不会太差',
+    '收支分明，心里不慌',
+    '小账本，大智慧',
+    '把日子过明白，从记好每一笔开始'
+  ];
+  const QUOTES_EVENING = [
+    '今天辛苦了，把账记好再休息吧',
+    '复盘今天的收支，明天会更从容',
+    '晚安前记一笔，安心入睡',
+    '积少成多，坚持记账的你很棒',
+    '花出去的钱有迹可循，赚到的更有底气'
+  ];
+  const QUOTES_NIGHT = [
+    '夜深了，记得给今天的账本画个句号',
+    '早点休息，明天继续加油',
+    '记账是为了更好的明天',
+    '每一分钱都值得被认真对待',
+    '夜深人静，最适合理理账目'
+  ];
   function greet() {
     const h = new Date().getHours();
-    if (h < 6) return '夜深了';
-    if (h < 11) return '早上好';
-    if (h < 14) return '中午好';
-    if (h < 18) return '下午好';
-    return '晚上好';
+    const list = h < 6 ? QUOTES_NIGHT : h < 11 ? QUOTES_MORNING : h < 14 ? QUOTES_DAY : h < 18 ? QUOTES_DAY : QUOTES_EVENING;
+    return list[Math.floor(Math.random() * list.length)];
   }
 
   function addDaysStr(s, n) {
@@ -73,24 +100,33 @@ window.Views = (() => {
     const bType = S().billType || 'all';
     if (bType !== 'all') boxTxs = boxTxs.filter(t => t.type === bType);
     const boxTotal = boxTxs.length;
-    if (boxTxs.length > 100) boxTxs = boxTxs.slice(0, 100);
+    /* 分页加载：首屏/切换条件后显示 billMore 条，点「加载更多」追加 */
+    const moreN = S().billMore || 100;
+    const showN = Math.min(moreN, boxTotal);
+    const shownTxs = boxTxs.slice(0, showN);
     let bInc = 0, bExp = 0;
-    boxTxs.forEach(t => { if (t.excludeStats) return; if (t.type === 'income') bInc += t.amount; else if (t.type === 'expense') bExp += t.amount; });
+    shownTxs.forEach(t => { if (t.excludeStats) return; if (t.type === 'income') bInc += t.amount; else if (t.type === 'expense') bExp += t.amount; });
     const groups = {};
-    boxTxs.forEach(t => { (groups[t.date] = groups[t.date] || []).push(t); });
+    shownTxs.forEach(t => { (groups[t.date] = groups[t.date] || []).push(t); });
     const dates = Object.keys(groups).sort().reverse();
     const dailySum = d => {
       let e = 0, i = 0;
       groups[d].forEach(t => { if (t.type === 'expense') e += t.amount; else if (t.type === 'income') i += t.amount; });
       return { e, i };
     };
+    const hasMore = showN < boxTotal;
 
     v.innerHTML =
       '<div class="page">' +
         '<div class="hello">' +
-          '<div><div class="hello-date">' + UI.fmtMonthCn(UI.monthKey(y, m)) + ' · ' + UI.weekday(UI.todayStr()) + '</div>' +
-          '<h1>' + greet() + '，欢迎回来 👋</h1></div>' +
-          '<button class="btn btn-ghost btn-sm" data-action="open-search" aria-label="搜索">' + UI.icon('search', 18) + '</button>' +
+          '<div class="hello-top">' +
+            '<div class="hello-date">' +
+              '<span class="hello-day">' + UI.todayStr().slice(5, 7) + '月' + UI.todayStr().slice(8, 10) + '日 ' + UI.weekday(UI.todayStr()) + '</span>' +
+              '<span class="hello-time">' + UI.nowTime() + '</span>' +
+            '</div>' +
+            '<button class="btn btn-ghost btn-sm" data-action="open-search" aria-label="搜索">' + UI.icon('search', 18) + '</button>' +
+          '</div>' +
+          '<h1>' + greet() + '</h1>' +
         '</div>' +
         (dueRecs.length
           ? '<div class="card rec-due">' +
@@ -158,7 +194,7 @@ window.Views = (() => {
           '<div class="list-summary" style="padding:2px 0 8px">' +
             '<span>收入 <b class="v-green">' + money(bInc) + '</b></span>' +
             '<span>支出 <b class="v-red">' + money(bExp) + '</b></span>' +
-            '<span>' + (boxTotal > 100 ? '显示前 100 / 共 ' + boxTotal : '共 ' + boxTotal) + ' 笔</span>' +
+            '<span>' + (hasMore ? '显示 ' + showN + ' / 共 ' + boxTotal : '共 ' + boxTotal) + ' 笔</span>' +
           '</div>' +
           (dates.length === 0
             ? emptyHTML('📭', '这段时间还没有账单<br>点上方「记一笔」开始记录吧～')
@@ -168,7 +204,15 @@ window.Views = (() => {
                   groups[d].map(txRow).join('') +
                 '</div>'
               ).join('')) +
+          (hasMore
+            ? '<button class="btn btn-ghost btn-block bill-more" data-action="bill-more">加载更多账单（' + (boxTotal - showN) + ' 条）</button>'
+            : '') +
         '</div>' +
+        /* 文字记账：右下角圆形浮动入口（主菜单上方） */
+        '<button class="fab-text-bill" data-action="text-bill" aria-label="文字记账">' +
+          '<span class="fab-text-ico">' + UI.icon('pencil', 22) + '</span>' +
+          '<span class="fab-text-label">文字记账</span>' +
+        '</button>' +
       '</div>';
   }
 
@@ -177,7 +221,7 @@ window.Views = (() => {
     const box = $('#rec-cats');
     const st = S().record;
     if (!box || st.type === 'transfer') { if (box) box.innerHTML = ''; return; }
-    const cats = Store.getRootCategories(st.type);
+    const cats = Store.getRootCategoriesByUsage(st.type); // 按使用频率降序
     const activeRoot = activeRootId();
     box.innerHTML = '<div class="cat-grid">' + cats.map(c =>
       '<button class="cat-item ' + (c.id === activeRoot ? 'active' : '') + '" style="--cat-color:' + c.color + ';--cat-tint:' + UI.hexToRgba(c.color, 0.13) + '" data-action="pick-cat" data-val="' + c.id + '">' +
@@ -199,9 +243,8 @@ window.Views = (() => {
     const st = S().record;
     if (st.type === 'transfer') { box.className = 'rec-subs'; box.innerHTML = ''; return; }
     const rootId = activeRootId();
-    const subs = Store.getSubCategories(rootId);
+    const subs = Store.getSubCategoriesByUsage(rootId); // 按使用频率降序
     if (!rootId || !subs.length) { box.className = 'rec-subs'; box.innerHTML = ''; return; }
-    const root = Store.getCategory(rootId);
     const chip = (id, icon, name, active) =>
       '<button class="sub-chip' + (active ? ' active' : '') + '" data-action="pick-sub" data-val="' + id + '">' +
         '<span class="sub-ico">' + UI.catIcon(icon) + '</span><span class="sub-name">' + esc(name) + '</span>' +
@@ -209,7 +252,6 @@ window.Views = (() => {
     box.className = 'rec-subs open';
     box.innerHTML =
       '<div class="rec-subs-inner">' +
-        chip(rootId, root.icon, root.name, st.categoryId === rootId) +
         subs.map(s => chip(s.id, s.icon, s.name, st.categoryId === s.id)).join('') +
       '</div>';
   }
@@ -332,6 +374,11 @@ window.Views = (() => {
         st.discountOn = !!(tx.originalPrice && tx.originalPrice > 0);
         st.discountOrig = tx.originalPrice ? String(tx.originalPrice) : '0';
         st.discountDisc = tx.discount ? String(tx.discount) : '0';
+        st.discountFinal = tx.originalPrice && tx.discount !== undefined
+          ? String(Math.round(Math.max(0, tx.originalPrice - (tx.discount || 0)) * 100) / 100)
+          : '0';
+        st.discountTarget = 'orig';
+        st.discT = { orig: tx.originalPrice ? 1 : 0, disc: tx.discount ? 2 : 0, final: tx.originalPrice ? 3 : 0 };
         st.excludeStats = !!tx.excludeStats;
         st.excludeBudget = !!tx.excludeBudget;
         st.attachments = tx.attachments || [];
@@ -348,7 +395,8 @@ window.Views = (() => {
       }
     }
     if (st.type !== 'transfer' && !st.categoryId) {
-      const cats = Store.getRootCategories(st.type);
+      /* 默认分类：按使用频率排序后的第一个（最常用） */
+      const cats = Store.getRootCategoriesByUsage(st.type);
       st.categoryId = cats.length ? cats[0].id : null;
     }
 
@@ -369,8 +417,6 @@ window.Views = (() => {
           '<div id="rec-subs"></div>' +
           '<div id="rec-accs"></div>' +
           '<div class="rec-tools">' +
-            '<button class="btn btn-ghost btn-sm" data-action="voice">' + UI.icon('mic', 15) + ' 语音记账</button>' +
-            '<button class="btn btn-ghost btn-sm" data-action="ocr">' + UI.icon('camera', 15) + ' 截图识别</button>' +
             '<button class="btn btn-ghost btn-sm" data-action="text-bill">' + UI.icon('pencil', 15) + ' 文字记账</button>' +
           '</div>' +
         '</div>' +
@@ -422,20 +468,21 @@ window.Views = (() => {
     bindRecNoteHistory();
   }
 
-  /* 历史备注联想：按当前分类检索，按时间倒序，可滚动选择 */
+  /* 历史备注联想：按当前分类检索，同一备注取最近出现时间排序（正序），可滚动选择 */
   function renderRecNoteHistory() {
     const st = S().record;
     const box = $('#rec-note-history');
     if (!box || !st.categoryId || st.type === 'transfer') { if (box) box.style.display = 'none'; return; }
-    const seen = new Set();
-    const list = [];
+    /* note → 最近出现时间（同一备注多次出现时取最新一次） */
+    const latest = {};
     Store.data.transactions.forEach(t => {
       if (t.categoryId !== st.categoryId || !t.note) return;
       const n = String(t.note).trim();
-      if (!n || seen.has(n)) return;
-      seen.add(n);
-      list.push({ note: n, sort: t.date + ' ' + (t.time || '') });
+      if (!n) return;
+      const k = t.date + ' ' + (t.time || '');
+      if (!latest[n] || k > latest[n]) latest[n] = k;
     });
+    const list = Object.keys(latest).map(note => ({ note, sort: latest[note] }));
     list.sort((a, b) => (a.sort > b.sort ? 1 : -1));
     if (!list.length) { box.style.display = 'none'; return; }
     const catName = (Store.getCategory(st.categoryId) || {}).name || '';
@@ -493,31 +540,71 @@ window.Views = (() => {
 
   /* ============ 功能面板：优惠 / 属性 / 附件 ============ */
 
-  /* 优惠计算：优惠后价 = 原价 - 优惠 */
+  /* 优惠计算：优惠后价 = 原价 - 优惠；目标为「优惠后」时反推优惠 */
   function discountFinal() {
     const st = S().record;
     const orig = Math.round((parseFloat(st.discountOrig) || 0) * 100) / 100;
-    const disc = Math.round((parseFloat(st.discountDisc) || 0) * 100) / 100;
+    let disc = Math.round((parseFloat(st.discountDisc) || 0) * 100) / 100;
+    if (st.discountTarget === 'final') {
+      const fin = Math.round((parseFloat(st.discountFinal) || 0) * 100) / 100;
+      disc = Math.round(Math.max(0, orig - fin) * 100) / 100;
+    }
     return Math.round(Math.max(0, orig - disc) * 100) / 100;
   }
 
+  /* 优惠三字段联动：输入任意两个，第三个自动计算。
+     规则：取「最新编辑字段」+「最早编辑字段」推导第三个
+     （最早 = 用户最先设定的基准值，最新 = 本次修改 → 中间字段被重算）。 */
   function updateDiscountCalc() {
     const st = S().record;
     if (!st.discountOn) return;
-    const fin = discountFinal();
+    const o = Math.round((parseFloat(st.discountOrig) || 0) * 100) / 100;
+    const d = Math.round((parseFloat(st.discountDisc) || 0) * 100) / 100;
+    const f = Math.round((parseFloat(st.discountFinal) || 0) * 100) / 100;
+    const T = st.discT || { orig: 0, disc: 0, final: 0 };
+    const edited = [
+      { k: 'orig', t: T.orig },
+      { k: 'disc', t: T.disc },
+      { k: 'final', t: T.final }
+    ].filter(x => x.t > 0).sort((a, b) => a.t - b.t); // 编辑时间 旧→新
+    let no = o, nd = d, nf = f;
+    if (edited.length >= 2) {
+      /* 最早编辑 + 最新编辑 → 推导第三个 */
+      const first = edited[0].k;   // 最早
+      const last = edited[edited.length - 1].k; // 最新
+      const pair = [first, last];
+      if (!pair.includes('orig')) no = nd + nf;            // 优惠+优惠后 → 原价
+      else if (!pair.includes('disc')) nd = Math.max(0, no - nf); // 原价+优惠后 → 优惠
+      else if (!pair.includes('final')) nf = Math.max(0, no - nd); // 原价+优惠 → 优惠后
+    } else if (edited.length === 1) {
+      const only = edited[0].k;
+      if (only === 'orig') nf = Math.max(0, no - nd);
+      else if (only === 'disc') nf = Math.max(0, no - nd);
+      else if (only === 'final') nd = Math.max(0, no - nf);
+    } else {
+      nf = Math.max(0, no - nd);
+    }
+    st.discountOrig = String(no);
+    st.discountDisc = String(nd);
+    st.discountFinal = String(nf);
+    /* 写回输入框：跳过最新编辑字段（保留用户正在输入的中间态，如 "2."） */
+    const lastK = edited.length ? edited[edited.length - 1].k : null;
+    if (lastK !== 'orig') { const el = $('#disc-orig'); if (el) el.value = st.discountOrig; }
+    if (lastK !== 'disc') { const el = $('#disc-disc'); if (el) el.value = st.discountDisc; }
+    if (lastK !== 'final') { const el = $('#disc-final'); if (el) el.value = st.discountFinal; }
     const el = $('#rec-amount');
-    if (el) el.textContent = String(fin);
-    const finEl = $('#disc-final');
-    if (finEl) finEl.textContent = UI.fmtMoney(fin);
+    if (el) el.textContent = String(nf);
   }
 
-  /* 高亮当前选中的优惠输入框（原价 / 优惠） */
+  /* 高亮当前选中的优惠输入框（原价 / 优惠 / 优惠后） */
   function updateDiscountHighlight() {
     const st = S().record;
     const o = $('#disc-orig');
     const d = $('#disc-disc');
+    const f = $('#disc-final');
     if (o) o.classList.toggle('rp-input-active', st.discountTarget === 'orig');
     if (d) d.classList.toggle('rp-input-active', st.discountTarget === 'disc');
+    if (f) f.classList.toggle('rp-input-active', st.discountTarget === 'final');
   }
 
   function renderRecPanels() {
@@ -529,11 +616,11 @@ window.Views = (() => {
       html += '<div class="rec-panel">' +
         '<div class="rp-head">🏷️ 优惠</div>' +
         '<div class="rp-row">' +
-          '<span>原价</span><input type="number" id="disc-orig" class="rp-input' + (st.discountTarget === 'orig' ? ' rp-input-active' : '') + '" data-disc-target="orig" readonly value="' + esc(st.discountOrig) + '" placeholder="0">' +
+          '<span>原价</span><input type="text" inputmode="decimal" id="disc-orig" class="rp-input' + (st.discountTarget === 'orig' ? ' rp-input-active' : '') + '" data-disc-target="orig" readonly value="' + esc(st.discountOrig) + '" placeholder="0">' +
           '<span class="rp-minus">−</span>' +
-          '<span>优惠</span><input type="number" id="disc-disc" class="rp-input' + (st.discountTarget === 'disc' ? ' rp-input-active' : '') + '" data-disc-target="disc" readonly value="' + esc(st.discountDisc) + '" placeholder="0">' +
+          '<span>优惠</span><input type="text" inputmode="decimal" id="disc-disc" class="rp-input' + (st.discountTarget === 'disc' ? ' rp-input-active' : '') + '" data-disc-target="disc" readonly value="' + esc(st.discountDisc) + '" placeholder="0">' +
           '<span class="rp-eq">=</span>' +
-          '<span class="rp-final-inline">优惠后 <b id="disc-final">' + UI.fmtMoney(discountFinal()) + '</b></span>' +
+          '<span>优惠后</span><input type="text" inputmode="decimal" id="disc-final" class="rp-input' + (st.discountTarget === 'final' ? ' rp-input-active' : '') + '" data-disc-target="final" readonly value="' + esc(st.discountFinal) + '" placeholder="0">' +
         '</div>' +
       '</div>';
     }
@@ -627,7 +714,7 @@ window.Views = (() => {
     const acc = Store.getAccount(t.accountId);
     const toAcc = Store.getAccount(t.toAccountId);
     const color = isTransfer ? '#4DA08B' : c.color;
-    const icon = isTransfer ? '🔁' : c.icon;
+    const icon = isTransfer ? UI.icon('swap', 28) : UI.catIcon(c.icon);
     const sign = t.type === 'income' ? '+' : '-';
     const cls = t.type === 'income' ? 'v-green' : t.type === 'expense' ? 'v-red' : '';
     const note = (t.note || '').replace(/\n+/g, ' ');
@@ -644,7 +731,7 @@ window.Views = (() => {
       ? esc((acc && acc.name) || '') + ' → ' + esc((toAcc && toAcc.name) || '')
       : esc((acc && acc.name) || '')) + (t.time ? ' · ' + esc(t.time) : '');
     return '<button class="tx-row" data-action="edit-tx" data-val="' + t.id + '">' +
-      '<span class="tx-ico"' + iconStyle(color) + '>' + UI.catIcon(icon) + '</span>' +
+      '<span class="tx-ico"' + iconStyle(color) + '>' + icon + '</span>' +
       '<span class="tx-main"><span class="tx-name">' + name + '</span>' +
       '<span class="tx-sub">' + subLine + '</span></span>' +
       '<span class="tx-right">' +
@@ -1298,7 +1385,6 @@ window.Views = (() => {
       '<div class="page acc-page">' +
         '<div class="page-head"><h1>账户管理</h1>' +
           '<div class="head-actions">' +
-            '<button class="btn btn-ghost btn-sm" data-action="open-transfer">⇄ 转账</button>' +
             '<button class="btn ' + (orderOn ? 'btn-primary' : 'btn-ghost') + ' btn-sm" data-action="acc-order-toggle">排序' + (orderOn ? ' ✓' : '') + '</button>' +
             '<button class="btn btn-primary btn-sm btn-macaron" data-action="add-acc">＋ 新账户</button>' +
           '</div></div>' +
@@ -1329,31 +1415,66 @@ window.Views = (() => {
     const v = $('#view');
     const a = Store.getAccount(id);
     if (!a) { App.nav('/accounts'); return; }
-    const all = Store.getTransactions({});
+    const as = S().accStats || { period: 'all', year: new Date().getFullYear(), monthKey: UI.monthKey(new Date().getFullYear(), new Date().getMonth() + 1) };
+    /* 周期区间 */
+    let from = '', to = '';
+    if (as.period === 'year') { from = as.year + '-01-01'; to = as.year + '-12-31'; }
+    else if (as.period === 'month') { const { y, m } = UI.parseMonthKey(as.monthKey); from = y + '-' + UI.pad(m) + '-01'; to = y + '-' + UI.pad(m) + '-' + UI.daysInMonth(y, m); }
+    const all = Store.getTransactions({ from, to });
     const txs = all.filter(t => t.accountId === id || t.toAccountId === id);
     let inc = 0, exp = 0;
     txs.forEach(t => { if (t.type === 'income') inc += t.amount; else if (t.type === 'expense') exp += t.amount; });
     const groups = {};
     txs.forEach(t => { (groups[t.date] = groups[t.date] || []).push(t); });
     const keys = Object.keys(groups).sort((x, y) => (x < y ? 1 : -1));
+    const ctl =
+      '<div class="stat-ctl cat-ctl acc-ctl">' +
+        '<div class="seg">' +
+          [['all', '全部'], ['year', '年'], ['month', '月']].map(p =>
+            '<button class="seg-btn ' + (as.period === p[0] ? 'active' : '') + '" data-action="acc-period" data-val="' + p[0] + '">' + p[1] + '</button>').join('') +
+        '</div>' +
+        (as.period === 'year'
+          ? '<span class="acc-ctl-nav">' +
+              '<button class="btn btn-ghost btn-sm" data-action="acc-nav" data-d="-1">‹</button>' +
+              '<button class="stat-ctl-label" data-action="acc-today" title="回到今年">' + as.year + ' 年</button>' +
+              '<button class="btn btn-ghost btn-sm" data-action="acc-nav" data-d="1">›</button>' +
+            '</span>'
+          : as.period === 'month'
+          ? '<span class="acc-ctl-nav">' +
+              '<button class="btn btn-ghost btn-sm" data-action="acc-nav" data-d="-1">‹</button>' +
+              '<button class="stat-ctl-label" data-action="acc-today" title="回到本月">' + UI.fmtMonthCn(as.monthKey) + '</button>' +
+              '<button class="btn btn-ghost btn-sm" data-action="acc-nav" data-d="1">›</button>' +
+            '</span>'
+          : '') +
+      '</div>';
     v.innerHTML =
       '<div class="page acc-page">' +
         '<div class="page-head">' +
           '<button class="btn btn-ghost btn-sm" data-action="nav" data-nav="/accounts">‹ 账户</button>' +
           '<button class="btn btn-ghost btn-sm" data-action="acc-more" data-val="' + id + '">⋮</button>' +
         '</div>' +
+        /* 余额栏：图标+名称+余额 顶部，收入/支出 上下排列底部 */
         '<div class="card assets-card acc-detail-head">' +
-          '<span class="acc-ico" style="background:' + (a.color || '#2f9e44') + '">' + UI.catIcon(a.icon) + '</span>' +
-          '<div class="acc-detail-main">' +
-            '<div class="acc-detail-name">' + esc(a.name) + (a.hidden ? ' <em class="acc-hidden">已隐藏</em>' : '') + '</div>' +
-            '<div class="acc-detail-type">' + ((Preset.accountTypes[a.type] || {}).name || '') + '</div>' +
+          '<div class="acc-detail-top">' +
+            '<span class="acc-ico" style="background:' + (a.color || '#2f9e44') + '">' + UI.catIcon(a.icon) + '</span>' +
+            '<div class="acc-detail-main">' +
+              '<div class="acc-detail-name">' + esc(a.name) + (a.hidden ? ' <em class="acc-hidden">已隐藏</em>' : '') + '</div>' +
+              '<div class="acc-detail-type">' + ((Preset.accountTypes[a.type] || {}).name || '') + '</div>' +
+            '</div>' +
+            '<div class="acc-detail-bal">余额 <b>' + money(Store.accountBalance(id)) + '</b></div>' +
           '</div>' +
-          '<div class="acc-detail-bal">余额 <b>' + money(Store.accountBalance(id)) + '</b></div>' +
+          '<div class="acc-detail-flows">' +
+            '<div class="acc-flow-row"><span class="acc-flow-label">收入</span><span class="v-green">' + money(inc) + '</span></div>' +
+            '<div class="acc-flow-row"><span class="acc-flow-label">支出</span><span class="v-red">' + money(exp) + '</span></div>' +
+          '</div>' +
         '</div>' +
-        '<div class="stat-grid" style="margin-bottom:10px">' +
-          statCard('总收入', money(inc), 'v-green') +
-          statCard('总支出', money(exp), 'v-red') +
-          statCard('结余', money(inc - exp), inc >= exp ? 'v-green' : 'v-red') +
+        /* 操作栏：记一笔 2/3 左 + 转账 1/3 右 */
+        '<div class="acc-actions-row">' +
+          '<button class="btn btn-primary btn-macaron acc-action-record" data-action="acc-record" data-val="' + id + '">＋ 记一笔</button>' +
+          '<button class="btn btn-ghost acc-action-transfer" data-action="acc-transfer" data-val="' + id + '">⇄ 转账</button>' +
+        '</div>' +
+        /* 周期栏：与操作栏贴紧 */
+        '<div class="card stat-ctl-card acc-ctl-card">' + ctl +
         '</div>' +
         '<div class="card bill-card">' +
           '<div class="bill-head-row"><span class="bill-title">' + UI.icon('list', 15) + ' 账户账单（' + txs.length + ' 笔）</span></div>' +
@@ -1363,7 +1484,7 @@ window.Views = (() => {
                   '<div class="tx-group-head"><span>' + UI.fmtDateCn(k) + ' ' + UI.weekday(k) + '</span></div>' +
                   groups[k].map(txRow).join('') +
                 '</div>').join('')
-            : emptyHTML('📭', '该账户暂无账单')) +
+            : emptyHTML('📭', '该周期暂无账单')) +
         '</div>' +
       '</div>';
   }
@@ -1451,20 +1572,111 @@ window.Views = (() => {
     mark();
   }
 
-  /* ---------- 转账弹窗 ---------- */
-  function openTransferModal() {
+  /* ---------- 转账专属页 ----------
+     转出账户固定（来自路由 ?id=）；转入账户五列网格（显示余额）；
+     各栏位 label 与输入框同一行；确认右上角、取消左上角 */
+  function transferPage(id) {
+    const v = $('#view');
     const accs = Store.getAccounts();
     if (accs.length < 2) { UI.toast('至少需要两个账户才能转账', 'err'); return; }
-    const opts = accs.map(a => ({ value: a.id, label: a.name }));
-    const sel = (id, selected) => '<select id="' + id + '">' + opts.map(o => '<option value="' + o.value + '"' + (o.value === selected ? ' selected' : '') + '>' + esc(o.label) + '</option>').join('') + '</select>';
-    UI.modal('账户转账',
-      '<div class="field"><label>转出账户</label>' + sel('tf-from', accs[0].id) + '</div>' +
-      '<div class="field"><label>转入账户</label>' + sel('tf-to', accs[1] ? accs[1].id : accs[0].id) + '</div>' +
-      '<div class="field"><label>金额（¥）</label><input type="number" id="tf-amount" step="0.01" placeholder="0.00"></div>' +
-      '<div class="field"><label>日期</label><input type="date" id="tf-date" value="' + UI.todayStr() + '"></div>' +
-      '<div class="field"><label>备注（可选）</label><input type="text" id="tf-note" placeholder="如：还信用卡"></div>' +
-      '<div class="modal-actions"><button class="btn btn-ghost" data-action="modal-close">取消</button>' +
-      '<button class="btn btn-primary" data-action="save-transfer">确认转账</button></div>');
+    const fromId = id || (S().transfer && S().transfer.from) || accs[0].id;
+    const fromAcc = Store.getAccount(fromId) || accs[0];
+    const others = accs.filter(a => a.id !== fromId);
+    /* 转入账户五列网格：图标 + 名称 + 余额 */
+    const grid = others.map(a =>
+      '<button type="button" class="tf-acc-cell' + (S().transfer && S().transfer.to === a.id ? ' active' : '') + '" data-action="tf-pick" data-val="' + a.id + '">' +
+        '<span class="acc-mini" style="background:' + (a.color || '#2f9e44') + '">' + UI.catIcon(a.icon) + '</span>' +
+        '<span class="tf-acc-name">' + esc(a.name) + '</span>' +
+        '<span class="tf-acc-bal">' + money(Store.accountBalance(a.id)) + '</span>' +
+      '</button>'
+    ).join('');
+    S().transfer = S().transfer || { from: null, to: null, atts: [] };
+    S().transfer.from = fromId;
+    const atts = S().transfer.atts || [];
+    const chips = atts.length
+      ? atts.map((a, i) => '<span class="rp-chip">' + (a.type && a.type.indexOf('image') === 0 ? '🖼️' : '📄') + ' ' + esc(a.name) +
+          '<button class="rp-chip-x" data-action="tf-att-remove" data-idx="' + i + '">×</button></span>').join('')
+      : '<span class="rp-empty">还没有附件</span>';
+    v.innerHTML =
+      '<div class="page page-transfer">' +
+        '<div class="page-head tf-head">' +
+          '<button class="btn btn-ghost btn-sm" data-action="nav" data-nav="/account?id=' + fromId + '">取消</button>' +
+          '<h1>转账</h1>' +
+          '<button class="btn btn-primary btn-sm" data-action="save-transfer">确认</button>' +
+        '</div>' +
+        '<div class="card">' +
+          '<div class="field-inline"><label>转出账户</label>' +
+            '<span class="tf-from-fixed">' +
+              '<span class="acc-mini" style="background:' + (fromAcc.color || '#2f9e44') + '">' + UI.catIcon(fromAcc.icon) + '</span>' +
+              '<span>' + esc(fromAcc.name) + '</span>' +
+              '<span class="tf-from-bal">余额 ' + money(Store.accountBalance(fromId)) + '</span>' +
+            '</span>' +
+          '</div>' +
+          '<div class="field"><label>转入账户</label>' +
+            '<div class="tf-acc-grid tf-acc-grid-5" id="tf-acc-grid">' + grid + '</div>' +
+            '<div class="tf-acc-sel" id="tf-acc-sel">' +
+              (S().transfer.to
+                ? '已选择：' + esc((Store.getAccount(S().transfer.to) || {}).name || '')
+                : '未选择') +
+            '</div>' +
+          '</div>' +
+          '<div class="field-inline"><label>实际到账金额（¥）</label><input type="number" id="tf-amount" step="0.01" placeholder="0.00"></div>' +
+          '<div class="field-inline"><label>手续费（¥）</label><input type="number" id="tf-fee" step="0.01" value="0" placeholder="0"><span class="tf-fee-tip">从当前账户扣除</span></div>' +
+          '<div class="field-inline"><label>日期</label><input type="date" id="tf-date" value="' + UI.todayStr() + '"></div>' +
+          '<div class="field-inline"><label>备注</label><input type="text" id="tf-note" placeholder="如：还信用卡"></div>' +
+          '<div class="field-inline"><label>附件</label>' +
+            '<div class="tf-attach-wrap">' +
+              '<div class="rp-add-row">' +
+                '<button class="btn btn-ghost btn-sm" data-action="tf-attach-src" data-src="camera">📷 相机</button>' +
+                '<button class="btn btn-ghost btn-sm" data-action="tf-attach-src" data-src="gallery">🖼️ 相册</button>' +
+                '<button class="btn btn-ghost btn-sm" data-action="tf-attach-src" data-src="file">📁 文件</button>' +
+              '</div>' +
+              '<div class="tf-attach-chips" id="tf-attach-chips">' + chips + '</div>' +
+              '<input type="file" id="tf-attach" style="display:none" accept="image/*" multiple>' +
+            '</div>' +
+          '</div>' +
+        '</div>' +
+      '</div>';
+  }
+
+  /* 转账页：选择转入账户 */
+  function pickTfAccount(id) {
+    S().transfer = S().transfer || { from: null, to: null, atts: [] };
+    S().transfer.to = id;
+    const fromId = S().transfer.from;
+    transferPage(fromId);
+  }
+
+  /* 转账页：附件选择 */
+  function tfAttachPick(src) {
+    const input = $('#tf-attach');
+    if (!input) return;
+    input.removeAttribute('capture');
+    if (src === 'camera') input.setAttribute('capture', 'environment');
+    input.click();
+  }
+
+  async function tfAttachAdd(files) {
+    const input = $('#tf-attach');
+    if (!input) return;
+    const list = Array.from(files || []);
+    input.value = '';
+    S().transfer = S().transfer || { from: null, to: null, atts: [] };
+    const atts = S().transfer.atts || [];
+    for (const f of list) {
+      if (f.size > 2.5 * 1024 * 1024) { UI.toast('「' + f.name + '」超过 2.5MB，未添加', 'err'); continue; }
+      const att = await attachmentToData(f);
+      if (!att.data) { UI.toast('「' + f.name + '」读取失败', 'err'); continue; }
+      atts.push(att);
+    }
+    S().transfer.atts = atts;
+    transferPage(S().transfer.from);
+  }
+
+  function tfAttachRemove(idx) {
+    S().transfer = S().transfer || { from: null, to: null, atts: [] };
+    S().transfer.atts.splice(Number(idx), 1);
+    transferPage(S().transfer.from);
   }
 
   /* ================= 设置 ================= */
@@ -1609,10 +1821,11 @@ window.Views = (() => {
         '· 若没有该选项，请用 Chrome 或 Safari 打开本页再试。</div>';
     }
 
-    /* 关于 */
+    /* 关于（含安装到桌面） */
     const aboutBody =
-      '<div class="about-name">🧾 轻账单 LiteBill<span class="about-ver">' + ((window.App && App.VERSION) || 'v1.86.0') + '</span></div>' +
-      '<div class="about-desc">本地优先的个人记账应用：记账、分类、账户、统计、预算、借贷、周期账单、语音记账、拍照识别、导入导出。数据不离开你的设备。</div>' +
+      '<div class="about-name">🧾 轻账单 LiteBill<span class="about-ver">' + ((window.App && App.VERSION) || 'v1.109.0') + '</span></div>' +
+      '<div class="about-desc">本地优先的个人记账应用：记账、分类、账户、统计、预算、借贷、周期账单、文字记账、导入导出。数据不离开你的设备。</div>' +
+      '<div class="about-install">' + installBody + '</div>' +
       '<div class="about-update">' +
         '<button class="btn btn-primary btn-sm" data-action="check-update">🔄 检查更新</button>' +
         '<span class="data-tip">从当前打开的网页地址获取最新版，自动下载并刷新，无需移除图标。</span>' +
@@ -1631,7 +1844,6 @@ window.Views = (() => {
         item('remind', 'time', '记账提醒', remindBody) +
         item('theme', 'palette', '外观', themeBody) +
         item('data', 'data', '数据管理', dataBody) +
-        item('install', 'home', '安装到桌面', installBody) +
         item('about', 'info', '关于', aboutBody) +
       '</div>';
   }
@@ -2266,181 +2478,169 @@ window.Views = (() => {
     setTimeout(() => { try { input.focus(); } catch (e) {} }, 50);
   }
 
-  /* ================= 语音记账 ================= */
-  function openVoiceModal() {
-    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SR) { UI.toast('当前浏览器不支持语音识别（请使用 Chrome / Edge）', 'err'); return; }
-    const modal = UI.modal('语音记账',
-      '<div class="voice-box">' +
-        '<button class="voice-mic" data-action="voice-start">🎤</button>' +
-        '<div class="voice-status" id="voice-status">点击麦克风开始说话</div>' +
-        '<div class="voice-text" id="voice-text"></div>' +
-      '</div>' +
-      '<div class="data-tip">支持中英文，例如「早餐花了十二块五」「打车35元」「收到工资八千」</div>' +
-      '<div class="modal-actions"><button class="btn btn-ghost" data-action="modal-close">关闭</button></div>');
-    const statusEl = modal.box.querySelector('#voice-status');
-    const textEl = modal.box.querySelector('#voice-text');
-    const startBtn = modal.box.querySelector('[data-action="voice-start"]');
-    let rec = null, finalText = '';
-
-    function showResult(parsed) {
-      if (!parsed) {
-        statusEl.textContent = '未识别到金额';
-        textEl.innerHTML = '识别内容：' + esc(finalText || '(空)') + '<br>可点击下方重试，或关闭后手动输入。';
-        startBtn.style.display = '';
-        return;
+  /* ================= 文字记账（智能解析） ================= */
+  /* 关键词 → 目标分类名（匹配用户现有分类；不存在时回退一级分类） */
+  const TXT_CAT_KW = [
+    ['零食', '休闲零食'], ['薯片', '休闲零食'], ['瓜子', '休闲零食'], ['饼干', '休闲零食'],
+    ['坚果', '休闲零食'], ['辣条', '休闲零食'], ['巧克力', '休闲零食'], ['蛋糕', '休闲零食'],
+    ['面包', '休闲零食'], ['冰淇淋', '休闲零食'], ['糖果', '休闲零食'],
+    ['水果', '水果'], ['买菜', '买菜'], ['早餐', '早餐'], ['早饭', '早餐'],
+    ['午饭', '午餐'], ['午餐', '午餐'], ['晚饭', '晚餐'], ['晚餐', '晚餐'], ['夜宵', '夜宵'], ['宵夜', '夜宵'],
+    ['奶茶', '饮料酒水'], ['咖啡', '饮料酒水'], ['饮料', '饮料酒水'], ['可乐', '饮料酒水'], ['啤酒', '饮料酒水'],
+    ['白酒', '饮料酒水'], ['红酒', '饮料酒水'], ['果汁', '饮料酒水'], ['矿泉水', '饮料酒水'], ['外卖', '外卖'],
+    ['烧烤', '请客吃饭'], ['火锅', '请客吃饭'], ['聚餐', '请客吃饭'], ['请客', '请客吃饭'],
+    ['打车', '打车'], ['出租车', '打车'], ['地铁', '公共交通'], ['公交', '公共交通'], ['巴士', '公共交通'],
+    ['加油', '加油'], ['汽油', '加油'], ['停车', '停车费'], ['洗车', '停车费'],
+    ['火车', '火车'], ['高铁', '火车'], ['动车', '火车'], ['机票', '飞机'], ['飞机', '飞机'], ['航班', '飞机'],
+    ['房租', '房租'], ['电费', '电费'], ['水费', '水费'], ['燃气', '燃气费'], ['煤气', '燃气费'],
+    ['话费', '花费宽带'], ['宽带', '花费宽带'], ['流量', '花费宽带'], ['物业', '物业费'],
+    ['超市', '日常家居'], ['便利店', '日常家居'], ['网购', '日常家居'], ['快递', '日常家居'],
+    ['宠物', '日常家居'], ['日用', '日常家居'], ['清洁', '日常家居'], ['纸巾', '日常家居'],
+    ['药店', '买药'], ['买药', '买药'], ['医院', '医院'], ['看病', '医院'], ['体检', '医院'], ['挂号', '医院'],
+    ['诊所', '医院'], ['牙科', '医院'], ['门诊', '医院'],
+    ['学费', '学费'], ['书', '书报杂志'], ['买书', '书报杂志'], ['文具', '办公用品'], ['培训', '培训考试'],
+    ['补习', '培训考试'], ['课程', '培训考试'], ['打印', '办公用品'],
+    ['红包', '红包'], ['礼物', '礼物'], ['随礼', '红包'], ['打赏', '打赏'], ['份子钱', '红包'],
+    ['衣服', '服饰运动'], ['裤子', '服饰运动'], ['鞋', '服饰运动'], ['裙子', '服饰运动'], ['外套', '服饰运动'],
+    ['衬衫', '服饰运动'], ['运动鞋', '服饰运动'], ['化妆品', '个护美妆'], ['面膜', '个护美妆'],
+    ['护肤品', '个护美妆'], ['洗发水', '个护美妆'], ['理发', '个护美妆'], ['美发', '个护美妆'],
+    ['手机', '手机数码'], ['充电器', '手机数码'], ['耳机', '手机数码'], ['数据线', '手机数码'],
+    ['电脑', '手机数码'], ['平板', '手机数码'], ['家电', '生活电器'], ['电饭煲', '生活电器'],
+    ['洗衣机', '生活电器'], ['冰箱', '生活电器'], ['电视', '生活电器'], ['空调', '生活电器'],
+    ['工资', '工资'], ['奖金', '奖金'], ['报销', '报销'], ['理财', '理财盈利'], ['收益', '理财盈利'],
+    ['股票', '理财盈利'], ['基金', '理财盈利'], ['利息', '理财盈利'],
+    ['兼职', '兼职外快'], ['外快', '兼职外快'], ['中奖', '中奖'], ['二手', '二手闲置'], ['闲置', '二手闲置'],
+    ['电影', '娱乐'], ['游戏', '娱乐'], ['KTV', '娱乐'], ['唱歌', '娱乐'], ['演出', '娱乐'],
+    ['门票', '娱乐'], ['球赛', '娱乐'], ['健身', '娱乐'], ['游泳', '娱乐'], ['旅游', '旅行'],
+    ['酒店', '旅行'], ['民宿', '旅行'], ['机票', '旅行'], ['景区', '旅行'], ['门票', '旅行']
+  ];
+  /* 语境兜底：动词/场景词 → 一级分类名 */
+  const TXT_CTX = [
+    ['食品餐饮', /吃|喝|买零食|餐|饭|外卖|奶茶|咖啡|水果|买菜/],
+    ['出行交通', /打车|地铁|公交|加油|停车|火车|飞机|打车|通勤/],
+    ['购物消费', /买|购|超市|商场|网购|快递|剁手/],
+    ['居家生活', /房租|水电|物业|宽带|燃气|家居|家电/],
+    ['文化教育', /书|课|学|培训|考试|文具/],
+    ['医疗健康', /药|医院|看病|体检|挂号/],
+    ['送礼人情', /红包|礼物|请客|随礼|人情/],
+    ['娱乐', /电影|游戏|KTV|唱歌|健身|演出|旅游/],
+    ['通讯', /话费|流量|宽带|手机费/],
+    ['服饰', /衣服|裤子|鞋|裙子|外套/]
+  ];
+  /* 常见账户别名关键词 → 目标账户名（别名命中后，按名称匹配用户账户） */
+  const ACC_ALIAS = [
+    ['现金', ['现金', '现钱', '钱包', '零钱']],
+    ['支付宝', ['支付宝', '花呗', '余额宝']],
+    ['微信', ['微信', 'wechat', '零钱通']],
+    ['银行卡', ['银行卡', '储蓄卡', '借记卡', '信用卡', '借记', '贷记']],
+    ['中国银行', ['中国银行', '中行']],
+    ['工商银行', ['工商银行', '工行']],
+    ['建设银行', ['建设银行', '建行']],
+    ['农业银行', ['农业银行', '农行']],
+    ['招商银行', ['招商银行', '招行']],
+    ['交通银行', ['交通银行', '交行']],
+    ['邮储银行', ['邮储', '邮政', '邮储银行']]
+  ];
+  /* 从文字中匹配账户：完整名 > 账户名核心词（去 支付/银行/卡/账户 后缀）> 别名关键词 */
+  function matchAccountFromText(text) {
+    const accs = Store.getAccounts();
+    const score = c => c.score || 0;
+    let best = null;
+    const better = cand => {
+      if (!best) { best = cand; return; }
+      if (score(cand) !== score(best)) { if (score(cand) > score(best)) best = cand; return; }
+      if (cand.name.length > best.name.length) best = cand;
+    };
+    /* 1) 完整账户名 */
+    accs.forEach(a => {
+      const n = String(a.name || '').trim();
+      if (!n || n.length < 2) return;
+      if (text.indexOf(n) !== -1) better({ accountId: a.id, name: n, score: 3 });
+    });
+    /* 2) 账户名核心词（去常见后缀） */
+    accs.forEach(a => {
+      const n = String(a.name || '').trim();
+      if (!n || n.length < 3) return;
+      const core = n.replace(/(支付|账户|银行卡|银行卡|银行|卡)$/g, '');
+      if (core && core.length >= 2 && core !== n && text.indexOf(core) !== -1) {
+        better({ accountId: a.id, name: n, score: 2 });
       }
-      const catName = parsed.categoryName || (parsed.type === 'income' ? '工资' : '其他');
-      statusEl.innerHTML = '<span class="v-green">✅ 识别成功</span>';
-      textEl.innerHTML = '识别内容：' + esc(finalText) +
-        '<div class="voice-result">' +
-          '<div class="vr-line">金额：<b>' + money(parsed.amount) + '</b></div>' +
-          '<div class="vr-line">类型：' + (parsed.type === 'income' ? '收入' : '支出') + ' · 分类：' + esc(catName) + '</div>' +
-        '</div>' +
-        '<div class="modal-actions" style="margin-top:12px">' +
-          '<button class="btn btn-ghost btn-sm" data-action="voice-retry">重新识别</button>' +
-          '<button class="btn btn-primary btn-sm" data-action="voice-apply">填入账单</button>' +
-        '</div>';
-      startBtn.style.display = 'none';
+    });
+    /* 3) 别名关键词 */
+    for (const [accName, kws] of ACC_ALIAS) {
+      const hit = kws.find(k => text.indexOf(k) !== -1);
+      if (!hit) continue;
+      const a = accs.find(x => x.name === accName) ||
+                accs.find(x => x.name.indexOf(accName) !== -1) ||
+                accs.find(x => accName.indexOf(x.name) !== -1);
+      if (a) better({ accountId: a.id, name: a.name, score: 1 });
     }
-
-    startBtn.addEventListener('click', () => {
-      if (rec) return;
-      finalText = '';
-      textEl.textContent = '';
-      statusEl.textContent = '正在聆听…';
-      rec = new SR();
-      rec.lang = 'zh-CN';
-      rec.interimResults = true;
-      rec.maxAlternatives = 1;
-      rec.onresult = e => {
-        let interim = '';
-        for (let i = e.resultIndex; i < e.results.length; i++) {
-          const r = e.results[i];
-          if (r.isFinal) finalText += r[0].transcript;
-          else interim += r[0].transcript;
-        }
-        textEl.textContent = finalText + interim;
-      };
-      rec.onerror = ev => {
-        statusEl.textContent = '识别出错：' + (ev.error || '未知');
-        rec = null;
-        startBtn.style.display = '';
-      };
-      rec.onend = () => {
-        statusEl.textContent = '识别结束';
-        showResult(UI.parseBillText(finalText));
-        rec = null;
-      };
-      rec.start();
-    });
-
-    modal.box.addEventListener('click', e => {
-      const t = e.target.closest('[data-action]');
-      if (!t) return;
-      if (t.dataset.action === 'voice-retry') { startBtn.style.display = ''; startBtn.click(); }
-      else if (t.dataset.action === 'voice-apply') {
-        const parsed = UI.parseBillText(finalText);
-        if (parsed) { fillRecord(parsed, finalText); modal.close(); }
-      }
-    });
+    return best ? { accountId: best.accountId, accountName: best.name } : null;
   }
-
-  /* ================= 拍照识别（OCR） ================= */
-  let tesseractPromise = null;
-  function loadTesseract() {
-    if (window.Tesseract) return Promise.resolve(window.Tesseract);
-    if (!tesseractPromise) {
-      tesseractPromise = new Promise((resolve, reject) => {
-        const s = document.createElement('script');
-        s.src = 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';
-        s.onload = () => resolve(window.Tesseract);
-        s.onerror = () => { tesseractPromise = null; reject(new Error('模型脚本加载失败（需联网）')); };
-        document.head.appendChild(s);
-      });
+  /* 从文字中匹配分类：
+     1) 完整分类名（最长优先）
+     2) 关键词表命中目标分类名
+     3) 文字 2 字词 ⊂ 分类名（如"零食" ⊂ "休闲零食"）
+     4) 语境兜底 → 一级分类
+     找不到时返回 null（用默认分类） */
+  function matchCategoryFromText(text, type) {
+    const cats = Store.getCategories(type);
+    let best = null;
+    const better = cand => {
+      if (!cand) return;
+      if (!best || cand.name.length > best.name.length) best = cand;
+    };
+    /* 1) 完整分类名（最长优先，优先二级） */
+    cats.forEach(c => {
+      const n = String(c.name || '').trim();
+      if (!n || n === '其他' || n.length < 2) return;
+      if (text.indexOf(n) !== -1) better({ categoryId: c.id, name: n, score: 2 });
+    });
+    /* 2) 关键词表：目标分类名 或 包含目标名的一级分类 */
+    for (const pair of TXT_CAT_KW) {
+      if (text.indexOf(pair[0]) === -1) continue;
+      const target = pair[1];
+      let c = cats.find(x => x.name === target);
+      if (c) { better({ categoryId: c.id, name: c.name, score: 2 }); continue; }
+      c = cats.find(x => !x.parentId && x.name === target);
+      if (c) { better({ categoryId: c.id, name: c.name, score: 1 }); continue; }
+      /* 目标分类名不存在（如用户自定义分类名）→ 找名称包含目标词的分类 */
+      c = cats.find(x => x.name.indexOf(target) !== -1 && x.name !== '其他');
+      if (c) better({ categoryId: c.id, name: c.name, score: 1 });
     }
-    return tesseractPromise;
-  }
-
-  function openOcrModal() {
-    const modal = UI.modal('截图识别',
-      '<div class="ocr-box">' +
-        '<input type="file" id="ocr-file" accept="image/*" style="display:none">' +
-        '<button class="btn btn-ghost btn-block" data-action="ocr-pick">🖼️ 上传 / 拍摄账单截图</button>' +
-        '<img id="ocr-img" class="ocr-img" alt="">' +
-        '<div class="voice-status" id="ocr-status">上传后自动识别</div>' +
-        '<div class="voice-text" id="ocr-text"></div>' +
-      '</div>' +
-      '<div class="data-tip">支持微信、支付宝等账单截图。识别模型（中文+英文，约 12MB）首次使用需联网下载，之后有浏览器缓存。识别出的金额可一键填入账单。</div>' +
-      '<div class="modal-actions"><button class="btn btn-ghost" data-action="modal-close">关闭</button></div>');
-    const fileInput = modal.box.querySelector('#ocr-file');
-    const imgEl = modal.box.querySelector('#ocr-img');
-    const statusEl = modal.box.querySelector('#ocr-status');
-    const textEl = modal.box.querySelector('#ocr-text');
-
-    modal.box.querySelector('[data-action="ocr-pick"]').addEventListener('click', () => fileInput.click());
-
-    fileInput.addEventListener('change', () => {
-      const file = fileInput.files[0];
-      if (!file) return;
-      imgEl.src = URL.createObjectURL(file);
-      imgEl.style.display = 'block';
-      textEl.textContent = '';
-      statusEl.textContent = '正在加载识别引擎…';
-      loadTesseract().then(T =>
-        T.createWorker('chi_sim+eng', 1, {
-          logger: m => {
-            const p = m.progress ? Math.round(m.progress * 100) : 0;
-            if (m.status === 'recognizing text') statusEl.textContent = '正在识别（' + p + '%）…';
-            else if (m.status === 'loading language traineddata') statusEl.textContent = '正在下载识别模型（' + p + '%）…';
-            else if (m.status === 'loading tesseract core') statusEl.textContent = '正在加载引擎核心（' + p + '%）…';
-            else if (m.status === 'initializing tesseract') statusEl.textContent = '正在初始化引擎…';
-            else if (m.status === 'loading tesseract core') statusEl.textContent = '正在加载引擎…';
+    if (best) return { categoryId: best.categoryId, categoryName: best.name };
+    /* 3) 2 字词 ⊂ 分类名（覆盖"零食"→"休闲零食"等未列关键词的场景） */
+    const words = [];
+    for (let i = 0; i < text.length - 1; i++) {
+      const w = text.slice(i, i + 2);
+      if (/^[\u4e00-\u9fa5]{2}$/.test(w)) words.push(w);
+    }
+    if (words.length) {
+      let wBest = null;
+      cats.forEach(c => {
+        const n = String(c.name || '').trim();
+        if (!n || n === '其他' || n.length < 2) return;
+        words.forEach(w => {
+          if (n.indexOf(w) !== -1 && (!wBest || n.length > wBest.name.length)) {
+            wBest = { categoryId: c.id, name: n };
           }
-        })
-      ).then(worker =>
-        worker.recognize(file).then(({ data }) => {
-          worker.terminate();
-          const text = (data.text || '').trim();
-          const parsed = UI.parseBillText(text);
-          statusEl.textContent = parsed ? '✅ 识别到金额' : '⚠️ 未识别到金额，可手动填写';
-          let html = text ? esc(text.slice(0, 300)) : '(未识别到文字)';
-          if (parsed) {
-            const catName = parsed.categoryName || (parsed.type === 'income' ? '工资' : '其他');
-            html += '<div class="voice-result">' +
-              '<div class="vr-line">金额：<b>' + money(parsed.amount) + '</b></div>' +
-              '<div class="vr-line">类型：' + (parsed.type === 'income' ? '收入' : '支出') + ' · 分类：' + esc(catName) + '</div>' +
-            '</div>' +
-            '<div class="modal-actions" style="margin-top:12px"><button class="btn btn-primary btn-sm" data-action="ocr-apply">填入账单</button></div>';
-          }
-          textEl.innerHTML = html;
-          const applyBtn = modal.box.querySelector('[data-action="ocr-apply"]');
-          if (applyBtn) applyBtn.addEventListener('click', () => {
-            const mName = text.match(/(?:商户名称|收款方|付款方|商品名称|商户|收款人)[:：]?\s*([^\s\n]+)/);
-            fillRecord(parsed, mName ? mName[1] : text.slice(0, 30));
-            modal.close();
-          });
-        })
-      ).catch(err => {
-        statusEl.textContent = '识别失败：' + (err && err.message ? err.message : '未知错误');
+        });
       });
-    });
+      if (wBest) return { categoryId: wBest.categoryId, categoryName: wBest.name };
+    }
+    /* 4) 语境兜底 → 一级分类 */
+    for (const [rootName, re] of TXT_CTX) {
+      if (!re.test(text)) continue;
+      const root = cats.find(x => !x.parentId && x.name === rootName);
+      if (root) return { categoryId: root.id, categoryName: root.name };
+    }
+    /* 5) 保底：该类型第一个一级分类（排除「其他」），保证不落空 */
+    const fallback = cats.find(x => !x.parentId && x.name !== '其他');
+    if (fallback) return { categoryId: fallback.id, categoryName: fallback.name, guessed: true };
+    return null;
   }
 
-  /* 将解析结果填入记账表单 */
-  function fillRecord(parsed, text) {    const st = S().record;
-    const cats = Store.getCategories(parsed.type);
-    let cat = cats.find(c => c.name === parsed.categoryName) || cats.find(c => c.name === '其他') || cats[0];
-    st.type = parsed.type;
-    st.categoryId = cat ? cat.id : null;
-    st.amount = String(parsed.amount);
-    st.note = text ? text.slice(0, 50) : '';
-    st.merchant = null; st.date = null; st.time = null;
-    st._prefill = true;
-    App.nav('/record');
-  }
-
-  /* 文字记账：汉字+数字 → 备注（文字 价格，一段一行）+ 金额加和 */
+  /* 多行文字：每行「文字 数字」→ 备注行 + 金额加和 */
   function parseTextBill(text) {
     const tokens = String(text || '').replace(/[，,。；;：:\s]+/g, ' ').match(/[\u4e00-\u9fa5A-Za-z]+|\d+(?:\.\d+)?/g) || [];
     const notes = [];
@@ -2459,40 +2659,106 @@ window.Views = (() => {
     return { notes: notes.filter(Boolean), total: Math.round(total * 100) / 100 };
   }
 
+  /* 智能解析：类型 / 金额 / 账户 / 分类 / 备注 */
+  function parseTextSmart(text) {
+    const t = String(text || '').trim();
+    if (!t) return null;
+    const multi = t.indexOf('\n') !== -1;
+    const p = UI.parseBillText(t);               // 类型 + 最优金额（含"花了68"等）
+    const type = p ? p.type : 'expense';
+    let amount = 0, notes = [];
+    if (multi) {
+      const r = parseTextBill(t);                // 多行：每行 文字+数字 → 备注行 + 加和
+      amount = r.total;
+      notes = r.notes;
+    } else if (p) {
+      amount = p.amount;
+    }
+    if (!amount && !notes.length) return null;
+    const acc = matchAccountFromText(t);
+    let cat = matchCategoryFromText(t, type);
+    if (!cat && p && p.categoryName) {
+      const c = Store.getCategories(type).find(x => x.name === p.categoryName);
+      if (c) cat = { categoryId: c.id, categoryName: c.name };
+    }
+    if (!cat) cat = matchCategoryFromText(t, type); // 二次尝试（含保底一级分类）
+    const catGuessed = !!(cat && cat.guessed);
+    /* 备注：多行用各行文字；单行剔除账户名与金额语气词 */
+    let note = '';
+    if (notes.length) {
+      note = notes.join('\n');
+    } else {
+      let s = t;
+      if (acc) s = s.split(acc.accountName).join(' ');
+      /* 阿拉伯数字金额（可无单位，如「花了68」「花15元」；前缀动词一并删除） */
+      s = s.replace(/(?:花了|花了|用了|支付|付款|消费|花费|买了|共|合计|总计|金额|实付|实收|应付|应收|转账|收入|支出|收到|花|用|买|收|付|给|转|交|充|扣|订)?\s*\d+(?:\.\d+)?\s*(?:块|元|圆|毛|角|分|钱)?/g, ' ');
+      /* 汉字数字金额（必须带 元/块/圆/角/毛/分/钱 单位，避免误删「零食」的「零」等） */
+      s = s.replace(/(?:花了|用了|支付|付款|消费|花费|买了|共|合计|总计|金额|实付|实收|应付|应收|转账|收入|支出|收到|花|用|买|收|付|给|转|交|充|扣|订)?\s*[零〇一二两三四五六七八九十百千万亿]+(?:\s*点\s*[零〇一二三四五六七八九]+)?\s*(?:块|元|圆|毛|角|分|钱)/g, ' ');
+      /* 清理残留动词：开头/结尾/孤立动词（收到 花 用 买 充值 等），循环直到稳定 */
+      const VERB_MULTI = '收到|花了|用了|支付|付款|消费|花费|买了|充值|使用|转了|交了|充了|扣了|订了|付了|给了|收入|支出|转账|合计|总计|金额|实付|实收|应付|应收';
+      const VERB_SINGLE = '买|用|收|付|给|转|交|充|扣|订';
+      let prev;
+      s = s.trim();
+      do {
+        prev = s;
+        s = s.trim();
+        s = s.replace(new RegExp('^(?:' + VERB_MULTI + '|' + VERB_SINGLE + '|花(?=\\s*[0-9零〇一二两三四五六七八九十百千万亿]|元|块))+', 'g'), '');
+        s = s.replace(new RegExp('(?:' + VERB_MULTI + '|' + VERB_SINGLE + ')$', 'g'), '');
+        s = s.replace(new RegExp('\\s+(?:' + VERB_MULTI + '|' + VERB_SINGLE + ')(?=\\s)', 'g'), ' ');
+      } while (s !== prev);
+      s = s.replace(/[，,。；;：:！!？?、\s]+/g, ' ').trim();
+      note = s;
+    }
+    return {
+      type, amount: Math.round(amount * 100) / 100,
+      accountId: acc ? acc.accountId : null, accountName: acc ? acc.accountName : '',
+      categoryId: cat ? cat.categoryId : null, categoryName: cat ? cat.categoryName : '',
+      catGuessed,
+      note
+    };
+  }
+
   function openTextModal() {
     const modal = UI.modal('文字记账',
-      '<div class="field"><label>输入文字（汉字 + 数字）</label>' +
-        '<textarea id="txt-input" rows="4" placeholder="如：早餐12元&#10;打车35元&#10;或 午餐25.5 水果10" style="width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:var(--input-bg);color:var(--text);font-size:14px;outline:none"></textarea></div>' +
+      '<div class="field"><label>输入文字</label>' +
+        '<textarea id="txt-input" rows="4" placeholder="如：现金买零食花了68&#10;或 早餐12元&#10;打车35元" style="width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:var(--input-bg);color:var(--text);font-size:14px;outline:none"></textarea></div>' +
       '<div id="txt-preview" class="voice-result"></div>' +
-      '<div class="data-tip">每段「汉字 + 数字」形成一行备注，数字加和为价格；可写多行，也可写在一行。</div>' +
+      '<div class="data-tip">自动识别 账户 / 分类 / 金额 / 备注，例如「现金买零食花了68」→ 账户现金、分类休闲零食、支出68元。多行输入按行加和。</div>' +
       '<div class="modal-actions"><button class="btn btn-ghost" data-action="modal-close">取消</button>' +
       '<button class="btn btn-primary" data-action="txt-apply">填入账单</button></div>');
     const input = modal.box.querySelector('#txt-input');
     const prev = modal.box.querySelector('#txt-preview');
     const upd = () => {
-      const r = parseTextBill(input.value);
-      if (r.total > 0 || r.notes.length) {
-        prev.innerHTML = '<div class="vr-line">金额：<b>' + money(r.total) + '</b></div>' +
-          '<div class="vr-line">备注：</div><div class="txt-notes">' + esc(r.notes.join('\n')).replace(/\n/g, '<br>') + '</div>';
-      } else prev.innerHTML = '<div class="data-tip">等待输入…</div>';
-      modal.box.dataset.txtAmount = String(r.total);
-      modal.box.dataset.txtNotes = r.notes.join('\n');
+      const r = parseTextSmart(input.value);
+      if (r) {
+        const accTxt = r.accountName ? '账户：' + esc(r.accountName) : '账户：当前默认';
+        const catTxt = r.categoryName
+          ? '分类：' + esc(r.categoryName) + (r.catGuessed ? '（推测）' : '')
+          : '分类：未匹配（将用默认）';
+        const typeTxt = r.type === 'income' ? '收入' : '支出';
+        prev.innerHTML =
+          '<div class="vr-line">' + typeTxt + ' · ' + accTxt + ' · ' + catTxt + '</div>' +
+          '<div class="vr-line">金额：<b>' + money(r.amount) + '</b></div>' +
+          '<div class="vr-line">备注：' + (r.note ? esc(r.note).replace(/\n/g, '<br>') : '（空）') + '</div>';
+      } else {
+        prev.innerHTML = '<div class="data-tip">等待输入…</div>';
+      }
+      modal.box.dataset.txtSmart = r ? JSON.stringify(r) : '';
     };
     input.addEventListener('input', upd);
     upd();
     modal.box.querySelector('[data-action="txt-apply"]').addEventListener('click', () => {
-      const amt = parseFloat(modal.box.dataset.txtAmount) || 0;
-      const notes = modal.box.dataset.txtNotes || '';
-      if (!amt || !notes) { UI.toast('请先输入有效的文字和数字', 'err'); return; }
-      const parsed = UI.parseBillText(input.value);
+      const raw = modal.box.dataset.txtSmart;
+      if (!raw) { UI.toast('请先输入有效的文字和数字', 'err'); return; }
+      let r;
+      try { r = JSON.parse(raw); } catch (e) { r = null; }
+      if (!r || !r.amount) { UI.toast('请先输入有效的文字和数字', 'err'); return; }
       const st = S().record;
-      const type = parsed ? parsed.type : 'expense';
-      const cats = Store.getCategories(type);
-      const cat = cats.find(c => c.name === (parsed && parsed.categoryName)) || cats.find(c => c.name === '其他') || cats[0];
-      st.type = type;
-      st.categoryId = cat ? cat.id : null;
-      st.amount = String(amt);
-      st.note = notes;
+      st.type = r.type;
+      st.amount = String(r.amount);
+      st.note = r.note || '';
+      if (r.accountId) st.accountId = r.accountId;
+      if (r.categoryId) st.categoryId = r.categoryId;
       st.merchant = null; st.date = null; st.time = null;
       st._prefill = true;
       modal.close();
@@ -2504,12 +2770,13 @@ window.Views = (() => {
     home, record, statsDaily, statsMonth, statsYear, statsCustom, calendar, budget, accounts, settings,
     openMonthJump,
     openLoanModal, settleLoanModal, openRecurringModal,
-    openVoiceModal, openOcrModal, fillRecord, openTextModal,
+    openTextModal, parseTextSmart,
     renderRecCats, renderRecSubs, renderRecAccs, renderDt, renderRecPanels, renderRecFnRow, updateAmountColor,
     updateDiscountCalc, updateDiscountHighlight, handleAttachFiles,
     openRecAccModal, openRecTimeModal,
     openImportModal, impHandleFile, renderImportMapping, showImpStep, doImport, search, loans, openLoanAccountModal,
-    openAccModal, openTransferModal, openCatModal, accountDetail, accMoreMenu, openRemindModal, categoryPage,
+    openAccModal, openCatModal, accountDetail, accMoreMenu, openRemindModal, categoryPage,
+    transferPage, pickTfAccount, tfAttachPick, tfAttachAdd, tfAttachRemove,
     txRow, catOfId, typeLabel
   };
 })();

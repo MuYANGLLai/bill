@@ -87,7 +87,14 @@ window.Preset = {
     box:        '<path d="M3 8l9-4 9 4v9l-9 4-9-4z"/><path d="M3 8l9 4 9-4"/><path d="M12 12v9"/>',
     fun:        '<rect x="2.5" y="7" width="19" height="10" rx="3.5"/><path d="M7.5 10v4"/><path d="M5.5 12h4"/><path d="M16 10.5h.01"/><path d="M18.5 13h.01"/>',
     hongbao:    '<rect x="5" y="3.5" width="14" height="17" rx="2"/><path d="M5 9.5c2.3-2.2 11.7-2.2 14 0"/><circle cx="12" cy="14.5" r="2.6"/>',
-    refund:     '<polyline points="2 5 2 11 8 11"/><path d="M4.51 15a9 9 0 1 0 2.13-9.36L2 11"/><path d="M14 8.5l1.5 1.5 1.5-1.5"/><path d="M15.5 10v6"/><path d="M13.5 13.5h4"/>'
+    refund:     '<polyline points="2 5 2 11 8 11"/><path d="M4.51 15a9 9 0 1 0 2.13-9.36L2 11"/><path d="M14 8.5l1.5 1.5 1.5-1.5"/><path d="M15.5 10v6"/><path d="M13.5 13.5h4"/>',
+    movie:      '<rect x="3.5" y="5" width="17" height="14" rx="2"/><path d="M3.5 10h17"/><path d="M12 10v9"/><circle cx="12" cy="13" r="1.3"/>',
+    dumbbell:   '<path d="M4 9v6"/><path d="M7 8v8"/><path d="M7 8h10"/><path d="M17 8v8"/><path d="M20 9v6"/>',
+    bed:        '<path d="M3 19V9a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v10"/><path d="M3 14h18"/><path d="M7 14v-3h4v3"/>',
+    netbar:     '<rect x="4" y="4.5" width="16" height="11" rx="1.5"/><path d="M12 15.5v3.5"/><path d="M8.5 19h7"/>',
+    sport:      '<circle cx="12" cy="12" r="8.5"/><path d="M12 3.5v17"/><path d="M5.2 8l13.6 8"/><path d="M18.8 8l-13.6 8"/>',
+    outdoor:    '<circle cx="17.5" cy="6.5" r="2"/><path d="M3.5 19L10 9l3.5 5.5L16 12l4.5 7z"/><path d="M3.5 19h17"/>',
+    bedding:    '<rect x="3" y="4" width="18" height="8" rx="3"/><path d="M3 8h18"/><path d="M8 4v8"/><path d="M16 4v8"/><path d="M5 15h14l-1 6H6z"/><path d="M5 18h14"/>'
   },
 
   /* 功能 UI 线条图标库 */
@@ -109,7 +116,8 @@ window.Preset = {
     palette:  '<circle cx="12" cy="12" r="9"/><path d="M8 10h.01"/><path d="M12 8h.01"/><path d="M16 10h.01"/><path d="M12 21c-1.5-1-2.5-2.5-2.5-4.5S10.5 13 12 13s2.5 1.5 2.5 3.5S13.5 20 12 21z"/>',
     info:     '<circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><path d="M12 8h.01"/>',
     search:   '<circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/>',
-    loan:     '<path d="M7 4l-3 3 3 3"/><path d="M4 7h9"/><path d="M17 20l3-3-3-3"/><path d="M20 17h-9"/>'
+    loan:     '<path d="M7 4l-3 3 3 3"/><path d="M4 7h9"/><path d="M17 20l3-3-3-3"/><path d="M20 17h-9"/>',
+    swap:     '<path d="M4 8h13"/><path d="M13 4l4 4-4 4"/><path d="M20 16H7"/><path d="M11 12l-4 4 4 4"/>'
   },
 
   /* 支出：一级分类（icon 为线条图标 key，马卡龙配色） */
@@ -163,15 +171,8 @@ window.Preset = {
     ] }
   ],
 
-  /* 收入：一级分类（人名分类统一用 person 线条图标，马卡龙配色） */
+  /* 收入：一级分类（线条图标 + 马卡龙配色） */
   incomeCategories: [
-    { name: '妈妈',     icon: 'person', color: '#FFB3BA' },
-    { name: '慧慧',     icon: 'person', color: '#FFDAC1' },
-    { name: '亮君',     icon: 'person', color: '#BAE1FF' },
-    { name: '双双',     icon: 'person', color: '#D8BFD8' },
-    { name: '林昌新',   icon: 'person', color: '#CDB4DB' },
-    { name: '利远瑞',   icon: 'person', color: '#B5EAD7' },
-    { name: '苏靖淇',   icon: 'person', color: '#FFF3B0' },
     { name: '中奖',     icon: 'clover', color: '#FFDFBA' },
     { name: '理财盈利', icon: 'trend', color: '#B5EAD7' },
     { name: '兼职外快', icon: 'laptop', color: '#FFDFBA' },

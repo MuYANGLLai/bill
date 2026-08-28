@@ -188,6 +188,25 @@ window.Store = (() => {
         if (!Array.isArray(data.settings.reminders)) data.settings.reminders = [];
         /* 迁移：账户「计入总资产」标记默认 true */
         data.accounts.forEach(a => { if (a.includeAssets === undefined) a.includeAssets = true; });
+        /* 迁移：删除指定人名收入分类（用户不再使用），相关账单归入该类型「其他」 */
+        if (data.settings.incomeCleanup !== 'v1.87') {
+          const REMOVE_INCOME = ['妈妈', '慧慧', '亮君', '双双', '林昌新', '利远瑞', '苏靖淇'];
+          const removed = new Set();
+          data.categories = data.categories.filter(c => {
+            if (c.type === 'income' && REMOVE_INCOME.indexOf(c.name) !== -1) { removed.add(c.id); return false; }
+            return true;
+          });
+          if (removed.size) {
+            const other = data.categories.find(c => c.type === 'income' && !c.parentId && c.name === '其他');
+            data.transactions.forEach(t => {
+              if (removed.has(t.categoryId)) t.categoryId = other ? other.id : null;
+            });
+            /* 删除空置的父分类引用（子分类） */
+            data.categories.forEach(c => { if (c.parentId && removed.has(c.parentId)) c.parentId = null; });
+          }
+          data.settings.incomeCleanup = 'v1.87';
+          save();
+        }
         return data;
       }
     } catch (e) { persistOk = false; /* localStorage 不可用（如部分浏览器 file:// 模式）→ 使用内存数据 */ }
@@ -209,6 +228,33 @@ window.Store = (() => {
   const getRootCategories = type => data.categories.filter(c => c.type === type && !c.parentId);
   const getSubCategories = parentId => data.categories.filter(c => c.parentId === parentId);
   const getCategory = id => data.categories.find(c => c.id === id);
+
+  /* 一级分类按使用频率降序（账单笔数最多者排前；频率相同保持原顺序）。
+     二级分类的账单计入其一级分类。 */
+  function getRootCategoriesByUsage(type) {
+    const roots = getRootCategories(type);
+    const count = {};
+    data.transactions.forEach(t => {
+      if (!t.categoryId) return;
+      const c = getCategory(t.categoryId);
+      if (!c || c.type !== type) return;
+      const rootId = c.parentId || c.id;
+      count[rootId] = (count[rootId] || 0) + 1;
+    });
+    return roots.slice().sort((a, b) => (count[b.id] || 0) - (count[a.id] || 0));
+  }
+
+  /* 指定一级分类下的二级分类按使用频率降序（频率相同保持原顺序） */
+  function getSubCategoriesByUsage(parentId) {
+    const subs = getSubCategories(parentId);
+    const count = {};
+    data.transactions.forEach(t => {
+      if (t.categoryId && subs.some(s => s.id === t.categoryId)) {
+        count[t.categoryId] = (count[t.categoryId] || 0) + 1;
+      }
+    });
+    return subs.slice().sort((a, b) => (count[b.id] || 0) - (count[a.id] || 0));
+  }
 
   function addCategory(c) { c.id = uid(); data.categories.push(c); save(); return c; }
   function updateCategory(id, patch) { Object.assign(getCategory(id), patch); save(); }
@@ -258,7 +304,7 @@ window.Store = (() => {
       if (t.type === 'expense' && t.accountId === id) b -= t.amount;
       else if (t.type === 'income' && t.accountId === id) b += t.amount;
       else if (t.type === 'transfer') {
-        if (t.accountId === id) b -= t.amount;
+        if (t.accountId === id) b -= t.amount + (t.fee || 0); // 手续费从转出账户扣除
         if (t.toAccountId === id) b += t.amount;
       }
     }
@@ -489,7 +535,7 @@ window.Store = (() => {
 
   return {
     load, save, reset, uid, defaults, todayStr, nowTime,
-    getCategories, getRootCategories, getSubCategories, getCategory, addCategory, updateCategory, removeCategory, categoryLabel,
+    getCategories, getRootCategories, getRootCategoriesByUsage, getSubCategories, getSubCategoriesByUsage, getCategory, addCategory, updateCategory, removeCategory, categoryLabel,
     getAccounts, getAccount, addAccount, updateAccount, removeAccount,
     accountTxCount, accountBalance, totalAssets,
     addTransaction, getTransaction, updateTransaction, removeTransaction, getTransactions,

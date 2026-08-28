@@ -107,9 +107,11 @@ input[type="number"] { -moz-appearance: textfield; }
 .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 @media (max-width: 900px) { .grid-2 { grid-template-columns: 1fr; } }
 
-.hello { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; gap: 14px; flex-wrap: wrap; }
-.hello-date { color: var(--muted); font-size: 13px; margin-bottom: 4px; }
-.hello h1 { font-size: 24px; font-weight: 800; }
+.hello { display: block; margin-bottom: 18px; }
+.hello-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.hello-date { color: var(--muted); font-size: 13px; display: flex; align-items: center; gap: 8px; }
+.hello-time { font-variant-numeric: tabular-nums; background: var(--border-soft); border-radius: 6px; padding: 1px 7px; font-size: 12px; }
+.hello h1 { font-size: 24px; font-weight: 800; margin-top: 6px; line-height: 1.35; }
 /* 资产卡：淡绿主题（无净资产，仅收支结余 + 预算） */
 .assets-card {
   background: linear-gradient(135deg, #F2FBF6, #E2F7EB);
@@ -149,6 +151,7 @@ input[type="number"] { -moz-appearance: textfield; }
 /* 明细框透明：略微收回留边距（高特异性覆盖 .card 的 padding/贴边） */
 .card.bill-card { background: transparent; border: none; box-shadow: none; padding: 0; margin: 0 -12px; }
 .bill-head-row { display: flex; align-items: center; gap: 8px; margin: 0 0 6px; padding-left: 2px; flex-wrap: nowrap; overflow-x: auto; }
+.bill-more { margin: 4px 0 8px; color: var(--primary-2); background: var(--primary-soft); border: none; }
 @media (max-width: 900px) {
   .card.bill-card { margin-left: -8px; margin-right: -8px; }
 }
@@ -236,7 +239,7 @@ input[type="number"] { -moz-appearance: textfield; }
 .tx-group { background: var(--card); border: none; border-radius: 14px; overflow: hidden; margin-bottom: 14px; box-shadow: var(--shadow); }
 .tx-group.flat { box-shadow: none; margin-bottom: 10px; border-radius: 12px; }
 .tx-group-head { display: flex; justify-content: space-between; padding: 8px 16px; font-size: 12.5px; color: var(--muted); background: var(--border-soft); }
-.tx-row { display: flex; align-items: center; gap: 12px; width: 100%; padding: 5px 16px; height: 46px; border-top: 1px solid var(--border-soft); text-align: left; transition: background .12s; }
+.tx-row { display: flex; align-items: center; gap: 12px; width: 100%; padding: 5px 16px; height: 46px; text-align: left; transition: background .12s; }
 .tx-row:hover { background: var(--border-soft); }
 .tx-ico { width: 36px; height: 36px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 28px; color: #1c1e26; flex-shrink: 0; overflow: visible; }
 .tx-main { flex: 1; min-width: 0; }
@@ -317,6 +320,7 @@ input[type="number"] { -moz-appearance: textfield; }
 .about-name { font-size: 17px; font-weight: 800; }
 .about-ver { font-size: 12px; color: var(--muted); font-weight: 500; margin-left: 6px; }
 .about-desc { font-size: 13px; color: var(--muted); margin-top: 8px; line-height: 1.7; }
+.about-install { margin-top: 12px; padding-top: 12px; border-top: 1px dashed var(--border); }
 
 /* ============ 日历 ============ */
 .cal-week { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; margin-bottom: 6px; }
@@ -401,20 +405,9 @@ input[type="number"] { -moz-appearance: textfield; }
 /* 总资产标签（账户页） */
 .assets-label { font-size: 12px; color: rgba(28, 58, 42, 0.6); margin-bottom: 2px; }
 
-/* ============ 语音 / OCR ============ */
-.voice-box { text-align: center; padding: 10px 0 6px; }
-.voice-mic {
-  width: 84px; height: 84px; border-radius: 50%; font-size: 36px;
-  background: var(--primary-soft); border: 2px solid var(--primary);
-  transition: transform .1s;
-}
-.voice-mic:active { transform: scale(.92); }
-.voice-status { font-size: 13px; color: var(--muted); margin-top: 12px; }
-.voice-text { font-size: 13.5px; margin-top: 10px; line-height: 1.8; color: var(--text); background: var(--border-soft); border-radius: 10px; padding: 10px 12px; text-align: left; max-height: 160px; overflow-y: auto; word-break: break-all; }
+/* ============ 文字记账 ============ */
 .voice-result { margin-top: 10px; padding: 10px 12px; background: var(--primary-soft); border-radius: 10px; }
 .vr-line { font-size: 13.5px; line-height: 1.9; }
-.ocr-img { display: none; width: 100%; max-height: 220px; object-fit: contain; border-radius: 10px; margin-top: 12px; background: #000; }
-.ocr-box { text-align: center; }
 
 /* ============ 弹窗 / 提示 ============ */
 .modal-overlay { position: fixed; inset: 0; background: var(--modal-overlay); display: flex; align-items: center; justify-content: center; padding: 18px; z-index: 100; animation: fadeIn .18s ease; }
@@ -677,6 +670,22 @@ input[type="number"] { -moz-appearance: textfield; }
   .record-keypad { border-radius: 12px; padding: 6px 10px 10px; }
 }
 
+/* ============ 首页：文字记账浮动入口（右下角，主菜单上方） ============ */
+.fab-text-bill {
+  position: fixed; right: 14px; bottom: 92px; z-index: 45;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+  width: 54px; height: 54px; border-radius: 50%;
+  background: var(--primary); color: var(--on-primary);
+  box-shadow: 0 4px 14px rgba(20, 22, 40, 0.18);
+  transition: transform .08s, filter .15s;
+}
+.fab-text-bill:active { transform: scale(.93); }
+.fab-text-ico { display: flex; line-height: 1; }
+.fab-text-label { font-size: 9px; font-weight: 700; line-height: 1; }
+@media (max-width: 900px) {
+  .fab-text-bill { bottom: calc(84px + env(safe-area-inset-bottom)); }
+}
+
 /* ============ 移动端：底部悬浮毛玻璃胶囊菜单（放最后，最高优先级） ============ */
 @media (max-width: 900px) {
   #app { flex-direction: column; }
@@ -758,6 +767,14 @@ body.is-record .view { padding: 0; max-width: none; }
 .stat-nav ~ .card .btn-ghost { background: #ffffff; border: none; color: var(--text); }
 .stat-nav ~ .card .btn-ghost:hover { background: var(--border-soft); }
 
+/* v1.94：账户专属页周期选择 放宽间距 + 年/月切换按钮 */
+.acc-ctl { gap: 14px; }
+.acc-ctl .seg { max-width: none; flex: 0 0 auto; min-width: 180px; }
+.acc-ctl .seg-btn { padding: 9px 18px; }
+.acc-ctl-nav { display: inline-flex; align-items: center; gap: 8px; flex-wrap: nowrap; }
+.acc-ctl-nav .stat-ctl-label { min-width: 96px; padding: 7px 14px; }
+.acc-ctl-nav .btn-ghost { padding: 7px 12px; }
+
 /* ============ 记账提醒 ============ */
 .remind-row { display: flex; align-items: center; gap: 10px; padding: 9px 0; border-bottom: 1px solid var(--border-soft); }
 .remind-row:last-child { border-bottom: none; }
@@ -805,12 +822,59 @@ body.is-record .view { padding: 0; max-width: none; }
 .line-icon-cell.active { background: var(--primary-soft); border-color: var(--primary-2); }
 
 /* ============ 账户详情页 ============ */
-.acc-detail-head { display: flex; align-items: center; gap: 12px; }
+.acc-detail-head { display: block; }
+.acc-detail-top { display: flex; align-items: center; gap: 12px; }
 .acc-detail-main { flex: 1; min-width: 0; }
 .acc-detail-name { font-size: 16px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .acc-detail-type { font-size: 12px; color: var(--muted); margin-top: 2px; }
 .acc-detail-bal { font-size: 13px; color: var(--muted); text-align: right; }
 .acc-detail-bal b { font-size: 18px; color: var(--text); font-weight: 600; font-variant-numeric: tabular-nums; }
+.acc-detail-flows { display: flex; flex-direction: column; gap: 4px; margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--border); }
+.acc-flow-row { display: flex; align-items: center; justify-content: space-between; font-size: 13.5px; }
+.acc-flow-label { color: var(--muted); }
+.acc-flow-row span:last-child { font-weight: 600; font-variant-numeric: tabular-nums; }
+/* 操作栏：记一笔 2/3 + 转账 1/3，位于余额栏下方 */
+.acc-actions-row { display: flex; gap: 8px; margin: 10px 0 0; }
+.acc-action-record { flex: 2; }
+.acc-action-transfer { flex: 1; }
+/* 周期栏与操作栏贴紧 */
+.acc-ctl-card { margin-top: 0; padding-top: 10px; }
+.menu-list { display: flex; flex-direction: column; gap: 4px; }
+
+/* 转账弹窗：转出固定栏 + 转入账户网格 */
+.tf-from-fixed {
+  display: flex; align-items: center; gap: 10px; padding: 9px 12px;
+  background: var(--border-soft); border-radius: 10px; font-size: 14px; font-weight: 600;
+}
+.tf-from-bal { margin-left: auto; font-size: 12.5px; color: var(--muted); font-weight: 400; }
+.tf-acc-grid {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 8px;
+}
+/* 转账专属页：转入账户五列网格 */
+.tf-acc-grid-5 { grid-template-columns: repeat(5, 1fr); gap: 6px; }
+.tf-acc-cell {
+  display: flex; flex-direction: column; align-items: center; gap: 3px;
+  padding: 8px 2px; border-radius: 12px; border: 2px solid transparent;
+  background: var(--border-soft); text-align: center;
+}
+.tf-acc-cell .acc-mini { width: 26px; height: 26px; font-size: 14px; }
+.tf-acc-cell.active { background: var(--primary-soft); border-color: var(--primary-2); }
+.tf-acc-name { font-size: 11px; font-weight: 600; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tf-acc-bal { font-size: 9.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.tf-acc-sel { font-size: 12.5px; color: var(--primary-2); font-weight: 600; min-height: 18px; }
+.tf-attach-chips { margin-top: 6px; }
+
+/* 转账专属页 */
+.page-transfer { max-width: 560px; margin: 0 auto; }
+.tf-head { justify-content: space-between; }
+.tf-head h1 { order: 2; font-size: 18px; }
+.tf-head .btn:first-child { order: 1; }
+.tf-head .btn:last-child { order: 3; }
+.page-transfer .field-inline { align-items: center; }
+.page-transfer .field-inline label { padding-bottom: 0; min-width: 108px; }
+.page-transfer .field-inline input { flex: 1; min-width: 0; }
+.tf-fee-tip { font-size: 11.5px; color: var(--muted); white-space: nowrap; }
+.tf-attach-wrap { flex: 1; min-width: 0; }
 .menu-list { display: flex; flex-direction: column; gap: 4px; }
 .menu-item {
   display: flex; align-items: center; gap: 10px; width: 100%;

@@ -6,7 +6,7 @@ window.App = (() => {
   const ymd = d => d.getFullYear() + '-' + UI.pad(d.getMonth() + 1) + '-' + UI.pad(d.getDate());
   const curWeekStart = () => { const d = new Date(); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); return ymd(d); };
 
-  const APP_VERSION = 'v1.86.0'; // 当前版本（与 sw.js 缓存名同步，bump 时一起更新）
+  const APP_VERSION = 'v1.109.0'; // 当前版本（与 sw.js 缓存名同步，bump 时一起更新）
 
   const state = {
     month: UI.monthKey(new Date().getFullYear(), new Date().getMonth() + 1),
@@ -14,17 +14,21 @@ window.App = (() => {
     billType: 'all',                          // 明细框类型过滤：all | income | expense
     billYear: new Date().getFullYear(),
     billWeekStart: curWeekStart(),
+    billMore: 100,                            // 首页明细已加载条数（点「加载更多」递增）
     record: {
       type: 'expense', categoryId: null, editId: null, amount: '0',
       accountId: null, from: null, to: null,
       date: null, time: null, merchant: null, note: null,
       calcAcc: null, calcOp: null, entryFresh: false,
-      discountOn: false, discountOrig: '0', discountDisc: '0', discountTarget: 'orig',
+      discountOn: false, discountOrig: '0', discountDisc: '0', discountTarget: 'orig', discountFinal: '0',
+      discT: { orig: 0, disc: 0, final: 0 },   // 各字段最后手动编辑时间（任意两个 → 第三个自动算）
       excludeStats: false, excludeBudget: false, attrPanel: false, attachPanel: false, attachments: []
     },
     filters: { type: 'all', cat: 'all', acc: 'all', kw: '' },
     stats: { monthKey: UI.monthKey(new Date().getFullYear(), new Date().getMonth() + 1), year: new Date().getFullYear(), from: '', to: '', bar: 'expense', cat: 'root', type: 'expense', dailyBar: 'expense', skMode: 'amt', rankType: 'expense' },
     catStats: { period: 'all', year: new Date().getFullYear(), monthKey: UI.monthKey(new Date().getFullYear(), new Date().getMonth() + 1), from: '', to: '' },
+    accStats: { period: 'all', year: new Date().getFullYear(), monthKey: UI.monthKey(new Date().getFullYear(), new Date().getMonth() + 1) },
+    transfer: { from: null, to: null, atts: [] },   // 转账专属页状态
     settingsCatType: 'expense',
     settingsOpen: { cat: false, rec: false, theme: false, data: false, about: false },
     accOpen: { acc: true },
@@ -35,10 +39,13 @@ window.App = (() => {
     modal: null
   };
 
+  let lastRoute = '/home'; // 记录进入记一笔前的页面，保存/删除后返回
   const nav = route => {
     const target = String(route).split('?')[0];
-    if (location.hash.slice(1).split('?')[0] === target) { render(); } // 同路由（如语音预填）→ 立即重渲染
-    else location.hash = route;
+    const cur = location.hash.slice(1).split('?')[0] || '/home';
+    if (cur === target) { render(); return; } // 同路由（如语音预填）→ 立即重渲染
+    if (cur !== '/record' && target === '/record') lastRoute = location.hash.slice(1) || '/home'; // 进入记一笔：记住来源页
+    location.hash = route;
   };
   const route = () => location.hash.slice(1) || '/home';
   /* 统计页刷新：按当前路由重渲染对应统计页面 */
@@ -53,6 +60,11 @@ window.App = (() => {
   function catRefresh() {
     const id = new URLSearchParams(route().split('?')[1] || '').get('id');
     Views.categoryPage(id);
+  }
+  /* 账户专属页刷新 */
+  function accRefresh() {
+    const id = new URLSearchParams(route().split('?')[1] || '').get('id');
+    Views.accountDetail(id);
   }
 
   /* ---------------- 渲染 ---------------- */
@@ -75,6 +87,7 @@ window.App = (() => {
     else if (path === '/budget') Views.budget();
     else if (path === '/accounts') Views.accounts();
     else if (path === '/account') Views.accountDetail(new URLSearchParams(qs || '').get('id'));
+    else if (path === '/transfer') Views.transferPage(new URLSearchParams(qs || '').get('id')); // 转账专属页
     else if (path === '/category') Views.categoryPage(new URLSearchParams(qs || '').get('id'));
     else if (path === '/loans') Views.loans();          // 借贷专属页
     else if (path === '/search') Views.search();        // 搜索页
@@ -129,10 +142,10 @@ window.App = (() => {
     if (el) el.textContent = st.amount;
   }
 
-  /* 优惠模式下：键盘输入路由到 原价/优惠 输入框 */
+  /* 优惠模式下：键盘输入路由到 原价/优惠/优惠后 输入框 */
   function routeKeyToDiscount(k) {
     const st = state.record;
-    const id = st.discountTarget === 'disc' ? 'disc-disc' : 'disc-orig';
+    const id = st.discountTarget === 'disc' ? 'disc-disc' : st.discountTarget === 'final' ? 'disc-final' : 'disc-orig';
     const el = $(id);
     if (!el) return;
     let s = el.value || '0';
@@ -153,8 +166,9 @@ window.App = (() => {
       }
     }
     el.value = s;
-    if (st.discountTarget === 'disc') st.discountDisc = s;
-    else st.discountOrig = s;
+    if (st.discountTarget === 'disc') { st.discountDisc = s; st.discT.disc = Date.now(); }
+    else if (st.discountTarget === 'final') { st.discountFinal = s; st.discT.final = Date.now(); }
+    else { st.discountOrig = s; st.discT.orig = Date.now(); }
     Views.updateDiscountCalc();
   }
 
@@ -203,7 +217,8 @@ window.App = (() => {
     st.accountId = null; st.from = null; st.to = null;
     st.date = null; st.time = null; st.merchant = null; st.note = null;
     st.calcAcc = null; st.calcOp = null; st.entryFresh = false;
-    st.discountOn = false; st.discountOrig = '0'; st.discountDisc = '0'; st.discountTarget = 'orig';
+    st.discountOn = false; st.discountOrig = '0'; st.discountDisc = '0'; st.discountTarget = 'orig'; st.discountFinal = '0';
+    st.discT = { orig: 0, disc: 0, final: 0 };
     st.excludeStats = false; st.excludeBudget = false; st.attrPanel = false; st.attachPanel = false; st.attachments = [];
     st._prefill = false;
   }
@@ -214,9 +229,11 @@ window.App = (() => {
     let amt = Math.round((parseFloat(st.amount) || 0) * 100) / 100;
     let originalPrice = null, discount = null;
     if (st.discountOn) {
+      /* 三字段已联动：优惠后 = 原价 - 优惠，直接读取联动结果 */
       const orig = Math.round((parseFloat(st.discountOrig) || 0) * 100) / 100;
       const disc = Math.round((parseFloat(st.discountDisc) || 0) * 100) / 100;
-      amt = Math.round(Math.max(0, orig - disc) * 100) / 100;
+      const fin = Math.round((parseFloat(st.discountFinal) || 0) * 100) / 100;
+      amt = fin;
       originalPrice = orig;
       discount = disc;
     }
@@ -238,7 +255,7 @@ window.App = (() => {
     }
     UI.toast(st.editId ? '已保存修改' : '记账成功');
     resetRecordState();
-    nav('/home');
+    nav(lastRoute && lastRoute.split('?')[0] !== '/record' ? lastRoute : '/home');
   }
 
   function delTx() {
@@ -249,7 +266,7 @@ window.App = (() => {
       Store.removeTransaction(id);
       resetRecordState();
       UI.toast('已删除');
-      nav('/home');
+      nav(lastRoute && lastRoute.split('?')[0] !== '/record' ? lastRoute : '/home');
     });
   }
 
@@ -279,6 +296,7 @@ window.App = (() => {
     } else if (bp === 'year') {
       state.billYear += delta;
     }
+    state.billMore = 100; // 切换周期重置加载条数
     Views.home();
   }
 
@@ -287,6 +305,7 @@ window.App = (() => {
     state.month = UI.monthKey(now.getFullYear(), now.getMonth() + 1);
     state.billYear = now.getFullYear();
     state.billWeekStart = curWeekStart();
+    state.billMore = 100; // 重置周期时也重置加载条数
   }
 
   /* ---------------- 预算 ---------------- */
@@ -346,18 +365,22 @@ window.App = (() => {
   }
 
   function saveTransfer() {
-    const from = $('#tf-from').value;
-    const to = $('#tf-to').value;
+    const from = state.transfer ? state.transfer.from : null;
+    const to = state.transfer ? state.transfer.to : null;
     const amt = Math.round((parseFloat($('#tf-amount').value) || 0) * 100) / 100;
-    if (!from || !to || from === to) { UI.toast('请选择两个不同的账户', 'err'); return; }
-    if (!amt || amt <= 0) { UI.toast('请输入有效金额', 'err'); return; }
+    const fee = Math.round((parseFloat($('#tf-fee').value) || 0) * 100) / 100;
+    if (!from || !to || from === to) { UI.toast('请选择转入账户', 'err'); return; }
+    if (!amt || amt <= 0) { UI.toast('请输入有效到账金额', 'err'); return; }
+    const attachments = (state.transfer && state.transfer.atts) || [];
     Store.addTransaction({
-      type: 'transfer', accountId: from, toAccountId: to, amount: amt,
-      date: $('#tf-date').value, time: UI.nowTime(), merchant: '', note: $('#tf-note').value.trim()
+      type: 'transfer', accountId: from, toAccountId: to, amount: amt, fee,
+      date: $('#tf-date').value, time: UI.nowTime(), merchant: '', note: $('#tf-note').value.trim(),
+      attachments
     });
-    closeModal();
     UI.toast('转账成功');
-    Views.accounts();
+    /* 保存后回到转出账户专属页并刷新 */
+    nav('/account?id=' + from);
+    Views.accountDetail(from);
   }
 
   /* ---------------- 分类 ---------------- */
@@ -797,7 +820,8 @@ window.App = (() => {
         const st = state.record;
         st.type = val; st.categoryId = null; st.from = null; st.to = null;
         if (st.type !== 'transfer') {
-          const roots = Store.getRootCategories(st.type);
+          /* 默认分类：按使用频率排序后的第一个（最常用） */
+          const roots = Store.getRootCategoriesByUsage(st.type);
           st.categoryId = roots.length ? roots[0].id : null;
           if (!st.accountId) st.accountId = Store.getAccounts()[0] ? Store.getAccounts()[0].id : null;
         }
@@ -902,11 +926,21 @@ window.App = (() => {
         state.billPeriod = val;
         if (val === 'year') state.billYear = new Date().getFullYear();
         else if (val === 'month') resetBillAnchors();
+        state.billMore = 100;
         Views.home();
         break;
       }
+      case 'bill-more':
+        state.billMore = (state.billMore || 100) + 100;
+        Views.home();
+        {
+          const bb = $('#bill-box');
+          if (bb && bb.scrollIntoView) bb.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+        break;
       case 'bill-type':
         state.billType = state.billType === val ? 'all' : val;
+        state.billMore = 100;
         Views.home();
         {
           const bb = $('#bill-box');
@@ -962,7 +996,25 @@ window.App = (() => {
       case 'stat-sk': state.stats.skMode = val; statsRefresh(); break;
       case 'catrank-type': state.stats.rankType = val; statsRefresh(); break;
       case 'cat-period': state.catStats.period = val; catRefresh(); break;
-      case 'cat-nav': {
+      case 'acc-period': state.accStats.period = val; accRefresh(); break;
+      case 'acc-nav': {
+        const d = parseInt(el.dataset.d, 10);
+        if (state.accStats.period === 'year') {
+          state.accStats.year += d;
+        } else {
+          const { y, m } = UI.parseMonthKey(state.accStats.monthKey);
+          let ny = y, nm = m + d;
+          if (nm < 1) { nm = 12; ny--; } else if (nm > 12) { nm = 1; ny++; }
+          state.accStats.monthKey = UI.monthKey(ny, nm);
+        }
+        accRefresh();
+        break;
+      }
+      case 'acc-today':
+        state.accStats.year = new Date().getFullYear();
+        state.accStats.monthKey = UI.monthKey(new Date().getFullYear(), new Date().getMonth() + 1);
+        accRefresh();
+        break;      case 'cat-nav': {
         if (state.catStats.period === 'year') {
           state.catStats.year += parseInt(val, 10);
         } else {
@@ -1015,10 +1067,26 @@ window.App = (() => {
         break;
       case 'save-acc': saveAcc(val || null); break;
       case 'del-acc': delAcc(val); break;
-      case 'open-transfer': Views.openTransferModal(); break;
+      case 'acc-transfer': nav('/transfer?id=' + (val || '')); break; // 账户页转账 → 转账专属页
+      case 'tf-pick': Views.pickTfAccount(val); break;               // 转账页选择转入账户
+      case 'tf-attach-src': Views.tfAttachPick(val); break;          // 转账页附件来源
+      case 'tf-att-remove': Views.tfAttachRemove(val); break;        // 转账页移除附件
+      case 'acc-record': { // 账户页记一笔：记账账户固定为该账户
+        const st = state.record;
+        Object.assign(st, {
+          editId: null, type: st.type && st.type !== 'transfer' ? st.type : 'expense',
+          amount: '0', categoryId: null, from: null, to: null,
+          date: null, time: null, merchant: null, note: null,
+          discountOn: false, discountOrig: '0', discountDisc: '0', discountTarget: 'orig', discountFinal: '0',
+          discT: { orig: 0, disc: 0, final: 0 },
+          excludeStats: false, excludeBudget: false, attrPanel: false, attachPanel: false, attachments: [],
+          calcAcc: null, calcOp: null, entryFresh: false, _prefill: false
+        });
+        st.accountId = val;
+        nav('/record');
+        break;
+      }
       case 'save-transfer': saveTransfer(); break;
-      case 'voice': Views.openVoiceModal(); break;
-      case 'ocr': Views.openOcrModal(); break;
       case 'text-bill': Views.openTextModal(); break;
       case 'add-loan': Views.openLoanModal(null, val || null); break;
       case 'edit-loan': Views.openLoanModal(val); break;
@@ -1141,15 +1209,17 @@ window.App = (() => {
         el.value = '';
         Views.renderRecFnRow();
       }
+      else if (el.id === 'tf-attach') { Views.tfAttachAdd(el.files); el.value = ''; }
     });
 
     /* 优惠输入：键盘路由目标 + 实时计算 */
     document.addEventListener('input', e => {
       const el = e.target;
-      if (el.id === 'disc-orig' || el.id === 'disc-disc') {
+      if (el.id === 'disc-orig' || el.id === 'disc-disc' || el.id === 'disc-final') {
         state.record.discountTarget = el.dataset.discTarget || 'orig';
-        if (el.id === 'disc-orig') state.record.discountOrig = el.value;
-        else state.record.discountDisc = el.value;
+        if (el.id === 'disc-orig') { state.record.discountOrig = el.value; state.record.discT.orig = Date.now(); }
+        else if (el.id === 'disc-disc') { state.record.discountDisc = el.value; state.record.discT.disc = Date.now(); }
+        else { state.record.discountFinal = el.value; state.record.discT.final = Date.now(); }
         Views.updateDiscountCalc();
       }
     });
