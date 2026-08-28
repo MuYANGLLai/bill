@@ -111,8 +111,9 @@ window.Charts = (() => {
     }
     const cr = container.getBoundingClientRect();
     const ar = anchor.getBoundingClientRect();
-    const x = ar.left + ar.width / 2 - cr.left;
-    const y = ar.top - cr.top;
+    /* 绝对定位基于内容坐标系：视口差值 + 容器滚动偏移 */
+    const x = ar.left + ar.width / 2 - cr.left + container.scrollLeft;
+    const y = ar.top - cr.top + container.scrollTop;
     tip.innerHTML = html;
     tip.style.left = x + 'px';
     tip.style.top = y + 'px';
