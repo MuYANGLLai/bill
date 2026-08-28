@@ -94,16 +94,19 @@ window.Charts = (() => {
   }
 
   /* ---------- 柱状图 ---------- */
+  /* opts.scrollable: 横向滚动查看（显示部分内容并放大，左右滑动看其余）
+     opts.onTap(it): 点击柱条回调（it = {label, value, raw}） */
   function bars(container, items, opts = {}) {
     const h = opts.height || 170;
     const max = niceMax(Math.max.apply(null, items.map(i => i.value).concat([0])));
     const padL = 36, padB = opts.labelEvery === 0 ? 8 : 22, padT = 18, padR = 6;
-    const W = 1000;
-    const plotW = W - padL - padR, plotH = h - padT - padB;
     const n = items.length || 1;
-    const groupW = plotW / n;
-    const barW = Math.min(26, groupW * 0.62);
-    const svg = el('svg', { viewBox: '0 0 ' + W + ' ' + h, class: 'chart-svg' });
+    /* 每根柱固定间距：scrollable 时用固定组宽放大，否则自适应 */
+    const groupW = opts.scrollable ? Math.max(56, Math.floor(240 / Math.min(n, 4))) : (1000 - padL - padR) / n;
+    const W = opts.scrollable ? padL + groupW * n + padR : 1000;
+    const plotW = W - padL - padR, plotH = h - padT - padB;
+    const barW = Math.min(30, groupW * 0.55);
+    const svg = el('svg', { viewBox: '0 0 ' + W + ' ' + h, class: 'chart-svg', style: 'width:' + (opts.scrollable ? Math.max(100, W / 8) : '100%') + 'px;min-width:' + (opts.scrollable ? Math.max(100, W / 8) : '100%') + 'px' });
 
     for (let g = 0; g <= 4; g++) {
       const y = padT + plotH - (plotH * g / 4);
@@ -117,10 +120,11 @@ window.Charts = (() => {
       const x = padL + i * groupW + (groupW - barW) / 2;
       const bh = it.value > 0 ? Math.max(2, plotH * it.value / max) : 0;
       const y = padT + plotH - bh;
-      const rect = el('rect', { x: x.toFixed(2), y: y.toFixed(2), width: barW.toFixed(2), height: bh.toFixed(2), rx: 3, fill: it.color || 'var(--primary)' });
+      const rect = el('rect', { x: x.toFixed(2), y: y.toFixed(2), width: barW.toFixed(2), height: bh.toFixed(2), rx: 3, fill: it.color || 'var(--primary)', class: 'chart-bar' });
       const tt = el('title');
       tt.textContent = it.label + ': ' + money(it.value);
       rect.appendChild(tt);
+      if (opts.onTap) rect.addEventListener('click', () => opts.onTap(it));
       svg.appendChild(rect);
       if (n <= 15 && it.value > 0) {
         const t = el('text', { x: (x + barW / 2).toFixed(2), y: y - 4, 'text-anchor': 'middle', class: 'chart-val' });
@@ -135,6 +139,7 @@ window.Charts = (() => {
     });
     container.innerHTML = '';
     container.appendChild(svg);
+    if (opts.scrollable) container.classList.add('chart-scroll');
   }
 
   /* ---------- 正负柱状图（结余：绿涨红跌，零线基准） ---------- */
@@ -145,13 +150,13 @@ window.Charts = (() => {
     const min = -niceMax(Math.max.apply(null, vals.map(v => -v).concat([0])));
     const span = max - min;
     const padL = 36, padB = opts.labelEvery === 0 ? 8 : 22, padT = 12, padR = 6;
-    const W = 1000;
-    const plotW = W - padL - padR, plotH = h - padT - padB;
     const n = items.length || 1;
-    const groupW = plotW / n;
-    const barW = Math.min(26, groupW * 0.62);
+    const groupW = opts.scrollable ? Math.max(56, Math.floor(240 / Math.min(n, 4))) : (1000 - padL - padR) / n;
+    const W = opts.scrollable ? padL + groupW * n + padR : 1000;
+    const plotW = W - padL - padR, plotH = h - padT - padB;
+    const barW = Math.min(30, groupW * 0.55);
     const y0 = padT + plotH * max / span;
-    const svg = el('svg', { viewBox: '0 0 ' + W + ' ' + h, class: 'chart-svg' });
+    const svg = el('svg', { viewBox: '0 0 ' + W + ' ' + h, class: 'chart-svg', style: 'width:' + (opts.scrollable ? Math.max(100, W / 8) : '100%') + 'px;min-width:' + (opts.scrollable ? Math.max(100, W / 8) : '100%') + 'px' });
     svg.appendChild(el('line', { x1: padL, y1: y0, x2: W - padR, y2: y0, stroke: 'var(--border)', 'stroke-width': 1 }));
     for (let g = 0; g <= 4; g++) {
       const v = min + span * g / 4;
@@ -167,10 +172,11 @@ window.Charts = (() => {
       const v = it.value;
       const bh = Math.abs(v) > 0.005 ? Math.max(2, plotH * Math.abs(v) / span) : 0;
       const y = v >= 0 ? y0 - bh : y0;
-      const rect = el('rect', { x: x.toFixed(2), y: y.toFixed(2), width: barW.toFixed(2), height: bh.toFixed(2), rx: 2, fill: it.color || (v >= 0 ? 'var(--success)' : 'var(--danger)') });
+      const rect = el('rect', { x: x.toFixed(2), y: y.toFixed(2), width: barW.toFixed(2), height: bh.toFixed(2), rx: 2, fill: it.color || (v >= 0 ? 'var(--success)' : 'var(--danger)'), class: 'chart-bar' });
       const tt = el('title');
       tt.textContent = it.label + ': ' + money(it.value);
       rect.appendChild(tt);
+      if (opts.onTap) rect.addEventListener('click', () => opts.onTap(it));
       svg.appendChild(rect);
       if (n <= 15 && Math.abs(v) > 0.005) {
         const t = el('text', { x: (x + barW / 2).toFixed(2), y: y - 4, 'text-anchor': 'middle', class: 'chart-val' });
@@ -185,6 +191,7 @@ window.Charts = (() => {
     });
     container.innerHTML = '';
     container.appendChild(svg);
+    if (opts.scrollable) container.classList.add('chart-scroll');
   }
 
   /* ---------- 折线图 ---------- */
@@ -195,10 +202,11 @@ window.Charts = (() => {
     series.forEach(s => s.values.forEach(v => all.push(v)));
     const max = niceMax(Math.max.apply(null, all.concat([0])));
     const padL = 36, padB = 20, padT = 14, padR = 8;
-    const W = 1000;
-    const plotW = W - padL - padR, plotH = h - padT - padB;
     const n = Math.max(labels.length, 1);
-    const svg = el('svg', { viewBox: '0 0 ' + W + ' ' + h, class: 'chart-svg' });
+    const groupW = opts.scrollable ? Math.max(64, Math.floor(260 / Math.min(n, 4))) : (1000 - padL - padR) / (n - 1 || 1);
+    const W = opts.scrollable ? padL + groupW * (n - 1 || 1) + padR : 1000;
+    const plotW = W - padL - padR, plotH = h - padT - padB;
+    const svg = el('svg', { viewBox: '0 0 ' + W + ' ' + h, class: 'chart-svg', style: 'width:' + (opts.scrollable ? Math.max(100, W / 8) : '100%') + 'px;min-width:' + (opts.scrollable ? Math.max(100, W / 8) : '100%') + 'px' });
 
     for (let g = 0; g <= 4; g++) {
       const y = padT + plotH - (plotH * g / 4);
@@ -219,10 +227,11 @@ window.Charts = (() => {
       });
       svg.appendChild(el('path', { d, fill: 'none', stroke: s.color, 'stroke-width': 2.5, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }));
       s.values.forEach((v, i) => {
-        const c = el('circle', { cx: xAt(i).toFixed(1), cy: yAt(v).toFixed(1), r: 3, fill: s.color });
+        const c = el('circle', { cx: xAt(i).toFixed(1), cy: yAt(v).toFixed(1), r: 3.5, fill: s.color, class: 'chart-dot' });
         const tt = el('title');
         tt.textContent = (labels[i] || '') + ' ' + s.name + ': ' + money(v);
         c.appendChild(tt);
+        if (opts.onTap) c.addEventListener('click', () => opts.onTap({ label: labels[i] || '', value: v, name: s.name }));
         svg.appendChild(c);
       });
     });
@@ -237,6 +246,7 @@ window.Charts = (() => {
 
     container.innerHTML = '';
     container.appendChild(svg);
+    if (opts.scrollable) container.classList.add('chart-scroll');
 
     if (opts.legend !== false && series.length) {
       const leg = document.createElement('div');

@@ -253,6 +253,10 @@ input[type="number"] { -moz-appearance: textfield; }
 .stat-period-tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
 .chart-wrap { margin-bottom: 14px; }
 .chart-svg { width: 100%; height: auto; display: block; }
+/* 横向滚动图表：显示部分内容并放大，左右滑动查看其余 */
+.chart-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; padding-bottom: 4px; }
+.chart-scroll .chart-svg { height: auto; }
+.chart-bar, .chart-dot { cursor: pointer; }
 .donut-legend { margin-top: 12px; display: flex; flex-direction: column; gap: 7px; }
 .legend-item { display: flex; align-items: center; gap: 8px; font-size: 13px; }
 .legend-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }

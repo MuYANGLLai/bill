@@ -6,7 +6,7 @@ window.App = (() => {
   const ymd = d => d.getFullYear() + '-' + UI.pad(d.getMonth() + 1) + '-' + UI.pad(d.getDate());
   const curWeekStart = () => { const d = new Date(); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); return ymd(d); };
 
-  const APP_VERSION = 'v1.109.0'; // 当前版本（与 sw.js 缓存名同步，bump 时一起更新）
+  const APP_VERSION = 'v1.111.0'; // 当前版本（与 sw.js 缓存名同步，bump 时一起更新）
 
   const state = {
     month: UI.monthKey(new Date().getFullYear(), new Date().getMonth() + 1),
@@ -725,16 +725,17 @@ window.App = (() => {
       const m = html.match(/v1\.\d+\.\d+/);
       const ver = m ? m[0] : null;
       if (!ver) { UI.toast('该网址不是轻账单应用', 'err'); return; }
-      if (ver === APP_VERSION) { UI.toast('已是最新版本 ' + ver); return; }
       if (!('caches' in window)) { UI.toast('当前环境不支持缓存更新，请直接用该网址打开', 'err'); return; }
-      UI.toast('发现新版本 ' + ver + '，正在下载更新…');
+      /* 版本相同也强制重新下载覆盖（修复本地文件缺失/损坏），版本更高则正常更新 */
+      if (ver === APP_VERSION) UI.toast('版本相同，正在重新下载文件修复…');
+      else UI.toast('发现新版本 ' + ver + '，正在下载更新…');
       /* 当前应用的目录（不含 hash），用于缓存键对齐 SW 请求 */
       const baseDir = location.origin + location.pathname.slice(0, location.pathname.lastIndexOf('/') + 1);
       /* 第一步：先把全部文件下载到内存，任何一个失败都中止（不碰现有缓存） */
       const files = [];
       for (const f of UPDATE_FILES) {
         const r = await fetch(base + '/' + f, { cache: 'no-store' });
-        if (!r.ok) throw new Error('文件下载失败：' + f);
+        if (!r.ok) throw new Error('文件下载失败：' + f + '（HTTP ' + r.status + '）');
         files.push({ f, r });
       }
       /* 第二步：全部成功才写入新缓存 */
@@ -1257,6 +1258,7 @@ window.App = (() => {
 
   /* ---------------- PWA 安装 ---------------- */
   let deferredPrompt = null;
+  let autoPromptShown = false; // 已自动弹过安装窗（避免反复打扰）
   const isIOS = () => /iphone|ipad|ipod/i.test(navigator.userAgent || '') ||
     (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1); /* iPadOS Safari 桌面模式 */
   const pwaInstalled = () =>
@@ -1272,7 +1274,7 @@ window.App = (() => {
   function installPwa() {
     if (!deferredPrompt) return;
     deferredPrompt.prompt();
-    deferredPrompt.userChoice.then(() => { deferredPrompt = null; render(); });
+    deferredPrompt.userChoice.then(() => { deferredPrompt = null; autoPromptShown = true; render(); });
   }
 
   /* ---------------- 启动 ---------------- */
@@ -1284,13 +1286,20 @@ window.App = (() => {
     applyTheme();
     applyFont();
     bindEvents();
-    /* PWA：捕获系统安装提示（Chrome/Edge Android），可在设置页主动触发 */
+    /* PWA：捕获系统安装提示（Chrome/Edge Android），满足条件即自动弹窗 */
     window.addEventListener('beforeinstallprompt', e => {
       e.preventDefault();
       deferredPrompt = e;
       render();
+      /* 自动唤醒浏览器安装弹窗（仅在页面初次加载后、未弹过时触发一次） */
+      if (!autoPromptShown && !pwaInstalled()) {
+        autoPromptShown = true;
+        setTimeout(() => {
+          if (deferredPrompt) installPwa();
+        }, 800);
+      }
     });
-    window.addEventListener('appinstalled', () => { deferredPrompt = null; render(); });
+    window.addEventListener('appinstalled', () => { deferredPrompt = null; autoPromptShown = true; render(); });
     render();
     setInterval(checkReminders, 30000);
     checkReminders();
