@@ -904,13 +904,12 @@ window.Views = (() => {
 
     const barEl = $('#stat-bar');
     if (txs.length) {
-      const tapBar = it => UI.toast(it.label + '：' + (it.value >= 0 ? '' : '-') + money(Math.abs(it.value)));
-      if (barMode === 'balance') Charts.bars2(barEl, barItems.map(b => ({ label: b.label, value: b.value, color: b.value >= 0 ? '#B5EAD7' : '#FFB3BA' })), { scrollable: true, onTap: tapBar });
-      else Charts.bars(barEl, barItems.map(b => ({ label: b.label, value: b.value, color: barMode === 'income' ? '#B5EAD7' : '#FFB3BA' })), { scrollable: true, onTap: tapBar });
+      if (barMode === 'balance') Charts.bars2(barEl, barItems.map(b => ({ label: b.label, value: b.value, color: b.value >= 0 ? '#B5EAD7' : '#FFB3BA' })), { scrollable: true });
+      else Charts.bars(barEl, barItems.map(b => ({ label: b.label, value: b.value, color: barMode === 'income' ? '#B5EAD7' : '#FFB3BA' })), { scrollable: true });
     } else barEl.innerHTML = emptyHTML('🍃', '该时间段暂无收支记录');
 
     const ae = $('#stat-assets');
-    if (txs.length) Charts.line(ae, [{ name: '资产', color: '#BAE1FF', values: assetsSeries.map(a => a.value) }], { labels: assetsSeries.map(a => a.label), scrollable: true, onTap: it => UI.toast(it.label + '：资产 ' + money(it.value)) });
+    if (txs.length) Charts.line(ae, [{ name: '资产', color: '#BAE1FF', values: assetsSeries.map(a => a.value) }], { labels: assetsSeries.map(a => a.label), scrollable: true });
     else ae.innerHTML = emptyHTML('🍃', '该时间段暂无收支记录');
 
     /* 收支对比：左右占比柱 + 分类名以分类色虚线连接柱中对应段 */
@@ -1054,7 +1053,7 @@ window.Views = (() => {
       '</div>';
 
     const dbe = $('#dly-bar');
-    if (txs.length) Charts.bars(dbe, barItems.map(b => ({ label: b.label, value: b.value, color: dlyBar === 'income' ? 'var(--success)' : 'var(--danger)' })), { scrollable: true, onTap: it => UI.toast(it.label + '：' + money(it.value)) });
+    if (txs.length) Charts.bars(dbe, barItems.map(b => ({ label: b.label, value: b.value, color: dlyBar === 'income' ? 'var(--success)' : 'var(--danger)' })), { scrollable: true });
     else dbe.innerHTML = emptyHTML('🍃', '近七日暂无收支记录');
 
     const ae = $('#dly-assets');
@@ -1824,7 +1823,7 @@ window.Views = (() => {
 
     /* 关于（含安装到桌面） */
     const aboutBody =
-      '<div class="about-name">🧾 轻账单 LiteBill<span class="about-ver">' + ((window.App && App.VERSION) || 'v1.111.0') + '</span></div>' +
+      '<div class="about-name">🧾 轻账单 LiteBill<span class="about-ver">' + ((window.App && App.VERSION) || 'v1.113.0') + '</span></div>' +
       '<div class="about-desc">本地优先的个人记账应用：记账、分类、账户、统计、预算、借贷、周期账单、文字记账、导入导出。数据不离开你的设备。</div>' +
       '<div class="about-install">' + installBody + '</div>' +
       '<div class="about-update">' +

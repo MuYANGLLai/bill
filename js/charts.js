@@ -93,9 +93,37 @@ window.Charts = (() => {
     }
   }
 
+  /* 滚动模式 SVG 尺寸：同时设置 width/height 属性 + 内联 style（兼容安卓系统浏览器），
+     实际像素宽 = 内容逻辑宽（放大柱条），且至少铺满视口 */
+  const svgAttrs = (W, h, scrollable) => scrollable
+    ? { width: W, height: h, style: 'width:' + W + 'px;min-width:100%;max-width:none' }
+    : { width: '100%', height: h, style: 'width:100%;min-width:100%;max-width:none' };
+
+  /* 点击柱条/折点：在元素上方弹出卡片显示日期和金额 */
+  const chartTips = new WeakMap();
+  function showChartTip(container, anchor, html) {
+    let tip = chartTips.get(container);
+    if (!tip) {
+      tip = document.createElement('div');
+      tip.className = 'chart-tip';
+      container.appendChild(tip);
+      chartTips.set(container, tip);
+    }
+    const cr = container.getBoundingClientRect();
+    const ar = anchor.getBoundingClientRect();
+    const x = ar.left + ar.width / 2 - cr.left;
+    const y = ar.top - cr.top;
+    tip.innerHTML = html;
+    tip.style.left = x + 'px';
+    tip.style.top = y + 'px';
+    tip.style.opacity = '1';
+    clearTimeout(showChartTip._t);
+    showChartTip._t = setTimeout(() => { tip.style.opacity = '0'; }, 2000);
+  }
+
   /* ---------- 柱状图 ---------- */
   /* opts.scrollable: 横向滚动查看（显示部分内容并放大，左右滑动看其余）
-     opts.onTap(it): 点击柱条回调（it = {label, value, raw}） */
+     opts.onTap(it): 可选，点击柱条额外回调（默认弹出日期+金额卡片） */
   function bars(container, items, opts = {}) {
     const h = opts.height || 170;
     const max = niceMax(Math.max.apply(null, items.map(i => i.value).concat([0])));
@@ -106,7 +134,8 @@ window.Charts = (() => {
     const W = opts.scrollable ? padL + groupW * n + padR : 1000;
     const plotW = W - padL - padR, plotH = h - padT - padB;
     const barW = Math.min(30, groupW * 0.55);
-    const svg = el('svg', { viewBox: '0 0 ' + W + ' ' + h, class: 'chart-svg', style: 'width:' + (opts.scrollable ? Math.max(100, W / 8) : '100%') + 'px;min-width:' + (opts.scrollable ? Math.max(100, W / 8) : '100%') + 'px' });
+    const attrs = svgAttrs(W, h, opts.scrollable);
+    const svg = el('svg', Object.assign({ viewBox: '0 0 ' + W + ' ' + h, class: 'chart-svg' }, attrs));
 
     for (let g = 0; g <= 4; g++) {
       const y = padT + plotH - (plotH * g / 4);
@@ -124,7 +153,10 @@ window.Charts = (() => {
       const tt = el('title');
       tt.textContent = it.label + ': ' + money(it.value);
       rect.appendChild(tt);
-      if (opts.onTap) rect.addEventListener('click', () => opts.onTap(it));
+      rect.addEventListener('click', evt => {
+        showChartTip(container, rect, '<b>' + esc(it.label) + '</b><br>' + money(it.value));
+        if (opts.onTap) opts.onTap(it, evt);
+      });
       svg.appendChild(rect);
       if (n <= 15 && it.value > 0) {
         const t = el('text', { x: (x + barW / 2).toFixed(2), y: y - 4, 'text-anchor': 'middle', class: 'chart-val' });
@@ -156,7 +188,8 @@ window.Charts = (() => {
     const plotW = W - padL - padR, plotH = h - padT - padB;
     const barW = Math.min(30, groupW * 0.55);
     const y0 = padT + plotH * max / span;
-    const svg = el('svg', { viewBox: '0 0 ' + W + ' ' + h, class: 'chart-svg', style: 'width:' + (opts.scrollable ? Math.max(100, W / 8) : '100%') + 'px;min-width:' + (opts.scrollable ? Math.max(100, W / 8) : '100%') + 'px' });
+    const attrs = svgAttrs(W, h, opts.scrollable);
+    const svg = el('svg', Object.assign({ viewBox: '0 0 ' + W + ' ' + h, class: 'chart-svg' }, attrs));
     svg.appendChild(el('line', { x1: padL, y1: y0, x2: W - padR, y2: y0, stroke: 'var(--border)', 'stroke-width': 1 }));
     for (let g = 0; g <= 4; g++) {
       const v = min + span * g / 4;
@@ -176,7 +209,10 @@ window.Charts = (() => {
       const tt = el('title');
       tt.textContent = it.label + ': ' + money(it.value);
       rect.appendChild(tt);
-      if (opts.onTap) rect.addEventListener('click', () => opts.onTap(it));
+      rect.addEventListener('click', evt => {
+        showChartTip(container, rect, '<b>' + esc(it.label) + '</b><br>' + money(it.value));
+        if (opts.onTap) opts.onTap(it, evt);
+      });
       svg.appendChild(rect);
       if (n <= 15 && Math.abs(v) > 0.005) {
         const t = el('text', { x: (x + barW / 2).toFixed(2), y: y - 4, 'text-anchor': 'middle', class: 'chart-val' });
@@ -206,7 +242,8 @@ window.Charts = (() => {
     const groupW = opts.scrollable ? Math.max(64, Math.floor(260 / Math.min(n, 4))) : (1000 - padL - padR) / (n - 1 || 1);
     const W = opts.scrollable ? padL + groupW * (n - 1 || 1) + padR : 1000;
     const plotW = W - padL - padR, plotH = h - padT - padB;
-    const svg = el('svg', { viewBox: '0 0 ' + W + ' ' + h, class: 'chart-svg', style: 'width:' + (opts.scrollable ? Math.max(100, W / 8) : '100%') + 'px;min-width:' + (opts.scrollable ? Math.max(100, W / 8) : '100%') + 'px' });
+    const attrs = svgAttrs(W, h, opts.scrollable);
+    const svg = el('svg', Object.assign({ viewBox: '0 0 ' + W + ' ' + h, class: 'chart-svg' }, attrs));
 
     for (let g = 0; g <= 4; g++) {
       const y = padT + plotH - (plotH * g / 4);
@@ -231,7 +268,11 @@ window.Charts = (() => {
         const tt = el('title');
         tt.textContent = (labels[i] || '') + ' ' + s.name + ': ' + money(v);
         c.appendChild(tt);
-        if (opts.onTap) c.addEventListener('click', () => opts.onTap({ label: labels[i] || '', value: v, name: s.name }));
+        const item = { label: labels[i] || '', value: v, name: s.name };
+        c.addEventListener('click', evt => {
+          showChartTip(container, c, '<b>' + esc(item.label) + '</b><br>' + esc(item.name) + '：' + money(item.value));
+          if (opts.onTap) opts.onTap(item, evt);
+        });
         svg.appendChild(c);
       });
     });

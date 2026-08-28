@@ -254,9 +254,19 @@ input[type="number"] { -moz-appearance: textfield; }
 .chart-wrap { margin-bottom: 14px; }
 .chart-svg { width: 100%; height: auto; display: block; }
 /* 横向滚动图表：显示部分内容并放大，左右滑动查看其余 */
-.chart-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; padding-bottom: 4px; }
-.chart-scroll .chart-svg { height: auto; }
+.chart-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; padding-bottom: 4px; position: relative; }
+.chart-scroll .chart-svg { width: auto !important; height: auto !important; min-width: 100%; max-width: none; }
 .chart-bar, .chart-dot { cursor: pointer; }
+/* 点击柱条/折点弹出的日期+金额卡片 */
+.chart-tip {
+  position: absolute; z-index: 10; pointer-events: none;
+  background: rgba(28, 30, 38, 0.92); color: #fff;
+  font-size: 12.5px; line-height: 1.5; text-align: center;
+  padding: 5px 9px; border-radius: 8px; white-space: nowrap;
+  transform: translate(-50%, -115%); transition: opacity .15s;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2);
+}
+.chart-tip b { color: #B5EAD7; font-weight: 700; }
 .donut-legend { margin-top: 12px; display: flex; flex-direction: column; gap: 7px; }
 .legend-item { display: flex; align-items: center; gap: 8px; font-size: 13px; }
 .legend-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
