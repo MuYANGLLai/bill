@@ -6,7 +6,7 @@ window.App = (() => {
   const ymd = d => d.getFullYear() + '-' + UI.pad(d.getMonth() + 1) + '-' + UI.pad(d.getDate());
   const curWeekStart = () => { const d = new Date(); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); return ymd(d); };
 
-  const APP_VERSION = 'v1.114.0'; // 当前版本（与 sw.js 缓存名同步，bump 时一起更新）
+  const APP_VERSION = 'v1.115.0'; // 当前版本（与 sw.js 缓存名同步，bump 时一起更新）
 
   const state = {
     month: UI.monthKey(new Date().getFullYear(), new Date().getMonth() + 1),
@@ -29,6 +29,7 @@ window.App = (() => {
     catStats: { period: 'all', year: new Date().getFullYear(), monthKey: UI.monthKey(new Date().getFullYear(), new Date().getMonth() + 1), from: '', to: '' },
     accStats: { period: 'all', year: new Date().getFullYear(), monthKey: UI.monthKey(new Date().getFullYear(), new Date().getMonth() + 1) },
     transfer: { from: null, to: null, atts: [] },   // 转账专属页状态
+    budget: { period: 'month', key: '' },            // 预算页周期（key 在 render 时按需生成）
     settingsCatType: 'expense',
     settingsOpen: { cat: false, rec: false, theme: false, data: false, about: false },
     accOpen: { acc: true },
@@ -310,20 +311,18 @@ window.App = (() => {
 
   /* ---------------- 预算 ---------------- */
   function saveBudgetTotal() {
+    const s = state.budget || { period: 'month', key: Store.budgetKey('month') };
     const v = parseFloat($('#budget-total').value);
-    Store.data.settings.monthBudget = isNaN(v) || v < 0 ? 0 : Math.round(v * 100) / 100;
-    Store.save();
+    Store.saveBudgetTotal(s.period, s.key, isNaN(v) || v < 0 ? 0 : v);
     UI.toast('总预算已保存');
     Views.budget();
   }
 
   function saveCategoryBudget(el) {
+    const s = state.budget || { period: 'month', key: Store.budgetKey('month') };
     const id = el.dataset.budgetCat;
     const v = parseFloat(el.value);
-    const val = isNaN(v) || v <= 0 ? 0 : Math.round(v * 100) / 100;
-    const cb = Store.data.settings.categoryBudgets;
-    if (val > 0) cb[id] = val; else delete cb[id];
-    Store.save();
+    Store.saveCategoryBudget(s.period, s.key, id, isNaN(v) || v <= 0 ? 0 : v);
     UI.toast('分类预算已保存');
     Views.budget();
   }
@@ -391,12 +390,19 @@ window.App = (() => {
     if (!name) { UI.toast('请输入分类名称', 'err'); return; }
     const parentId = state.pendingCatParent || null;
     const patch = { name, icon: box.dataset.catEmoji || '📦', color: box.dataset.catColor || '#adb5bd' };
+    let newId = id;
     if (id) Store.updateCategory(id, patch);
-    else Store.addCategory(Object.assign({ type: state.settingsCatType, parentId }, patch));
+    else newId = Store.addCategory(Object.assign({ type: state.settingsCatType, parentId }, patch)).id;
     state.pendingCatParent = null;
     closeModal();
     UI.toast(id ? '分类已更新' : '分类已创建');
-    Views.settings();
+    /* 从记一笔页新增：选中新分类并刷新记一笔 */
+    if (route().split('?')[0] === '/record') {
+      state.record.categoryId = newId;
+      Views.record(state.record.editId || null);
+    } else {
+      Views.settings();
+    }
   }
 
   function delCat(id) {
@@ -821,8 +827,8 @@ window.App = (() => {
         const st = state.record;
         st.type = val; st.categoryId = null; st.from = null; st.to = null;
         if (st.type !== 'transfer') {
-          /* 默认分类：按使用频率排序后的第一个（最常用） */
-          const roots = Store.getRootCategoriesByUsage(st.type);
+          /* 默认分类：按排序配置后的第一个 */
+          const roots = Store.getRootCategoriesSorted(st.type);
           st.categoryId = roots.length ? roots[0].id : null;
           if (!st.accountId) st.accountId = Store.getAccounts()[0] ? Store.getAccounts()[0].id : null;
         }
@@ -1033,6 +1039,41 @@ window.App = (() => {
         catRefresh();
         break;
       case 'budget-total-save': saveBudgetTotal(); break;
+      case 'budget-period': { // 切换 月/年/周
+        state.budget = state.budget || { period: 'month', key: '' };
+        state.budget.period = val;
+        state.budget.key = Store.budgetKey(val);
+        Views.budget();
+        break;
+      }
+      case 'budget-nav': { // 前后切换周期
+        const b = state.budget || { period: 'month', key: '' };
+        const d = parseInt(el.dataset.d, 10);
+        if (b.period === 'month') {
+          const { y, m } = UI.parseMonthKey(b.key);
+          const nd = new Date(y, m - 1 + d, 1);
+          b.key = UI.monthKey(nd.getFullYear(), nd.getMonth() + 1);
+        } else if (b.period === 'year') {
+          b.key = String(parseInt(b.key, 10) + d);
+        } else {
+          const m = b.key.match(/^(\d{4})-W(\d{1,2})$/);
+          if (m) {
+            let wn = parseInt(m[2], 10) + d;
+            let y = parseInt(m[1], 10);
+            if (wn < 1) { y--; wn = 53; }
+            if (wn > 53) { y++; wn = 1; }
+            b.key = y + '-W' + wn;
+          }
+        }
+        Views.budget();
+        break;
+      }
+      case 'budget-today': {
+        const b = state.budget || { period: 'month', key: '' };
+        b.key = Store.budgetKey(b.period);
+        Views.budget();
+        break;
+      }
       case 'add-acc': Views.openAccModal(null); break;
       case 'go-acc': nav('/account?id=' + val); break;
       case 'acc-more': Views.accMoreMenu(val); break;
@@ -1040,6 +1081,10 @@ window.App = (() => {
       case 'acc-del': closeModal(); delAcc(val); break;
       case 'edit-acc': Views.openAccModal(val); break;
       case 'acc-move': {
+        /* 账户手动排序：使用即自动切换为手动模式 */
+        const sort = Store.data.settings.sort;
+        sort.acc = sort.acc || { mode: 'manual', desc: false };
+        sort.acc.mode = 'manual';
         const list = Store.data.accounts;
         const i = list.findIndex(x => x.id === val);
         const d = parseInt(el.dataset.d, 10);
@@ -1051,12 +1096,97 @@ window.App = (() => {
         Views.accounts();
         break;
       }
-      case 'acc-order-toggle':
-        Store.data.settings.accOrder = Store.data.settings.accOrder === false;
+      case 'cat-move': {
+        /* 一级分类手动排序：自动切换手动模式 */
+        const cfg = Store.data.settings.sort.cat1[state.settingsCatType] || { mode: 'freq', desc: false };
+        cfg.mode = 'manual';
+        const list = Store.getRootCategories(state.settingsCatType);
+        const i = list.findIndex(x => x.id === val);
+        const d = parseInt(el.dataset.d, 10);
+        const j = i + d;
+        if (i < 0 || j < 0 || j >= list.length) break;
+        const moved = list.splice(i, 1)[0];
+        list.splice(j, 0, moved);
+        /* 只重排该类型的一级分类顺序，二级分类保持原位 */
+        const all = Store.data.categories;
+        const rootIdx = {};
+        list.forEach((c, k) => { rootIdx[c.id] = k; });
+        const rootsOnly = all.filter(x => x.type === state.settingsCatType && !x.parentId);
+        rootsOnly.sort((a, b) => (rootIdx[a.id] ?? 999) - (rootIdx[b.id] ?? 999));
+        /* 重组：非该类型分类 + 重排后的该类型一级分类 + 二级分类 */
+        const others = all.filter(x => x.type !== state.settingsCatType || x.parentId);
+        Store.data.categories = others.concat(rootsOnly);
         Store.save();
-        UI.toast(Store.data.settings.accOrder ? '已显示排序按钮' : '已隐藏排序按钮');
-        Views.accounts();
+        Views.settings();
         break;
+      }
+      case 'sub-move': {
+        /* 二级分类手动排序：自动切换手动模式 */
+        const parentId = el.dataset.parent;
+        const parent = Store.getCategory(parentId);
+        if (!parent) break;
+        const cfg = Store.data.settings.sort.cat2[parent.type] || { mode: 'freq', desc: false };
+        cfg.mode = 'manual';
+        const list = Store.getSubCategories(parentId);
+        const i = list.findIndex(x => x.id === val);
+        const d = parseInt(el.dataset.d, 10);
+        const j = i + d;
+        if (i < 0 || j < 0 || j >= list.length) break;
+        const moved = list.splice(i, 1)[0];
+        list.splice(j, 0, moved);
+        /* 只重排该父级下的二级分类顺序 */
+        const all = Store.data.categories;
+        const subIdx = {};
+        list.forEach((c, k) => { subIdx[c.id] = k; });
+        const subsOnly = all.filter(x => x.parentId === parentId);
+        subsOnly.sort((a, b) => (subIdx[a.id] ?? 999) - (subIdx[b.id] ?? 999));
+        const others = all.filter(x => x.parentId !== parentId);
+        Store.data.categories = others.concat(subsOnly);
+        Store.save();
+        Views.settings();
+        break;
+      }
+      case 'sort-mode': {
+        /* 排序管理：切换排序模式 */
+        const level = el.dataset.level;
+        const type = el.dataset.type;
+        const g = level === 'acc' ? Store.data.settings.sort.acc : Store.data.settings.sort[level][type];
+        if (!g) break;
+        g.mode = val;
+        Store.save();
+        Views.settings();
+        break;
+      }
+      case 'sort-desc': {
+        /* 排序管理：正/反序 */
+        const level = el.dataset.level;
+        const type = el.dataset.type;
+        const g = level === 'acc' ? Store.data.settings.sort.acc : Store.data.settings.sort[level][type];
+        if (!g) break;
+        g.desc = !!el.checked;
+        Store.save();
+        Views.settings();
+        break;
+      }
+      case 'func-toggle': {
+        /* 功能管理开关 */
+        Store.data.settings.funcs = Store.data.settings.funcs || {};
+        Store.data.settings.funcs[val] = !!el.checked;
+        Store.save();
+        UI.toast(el.checked ? '已开启' : '已关闭');
+        Views.settings();
+        break;
+      }
+      case 'rec-add-cat': {
+        /* 记一笔：新增一级/二级分类 */
+        const st = state.record;
+        const type = st.type && st.type !== 'transfer' ? st.type : 'expense';
+        /* 若当前已选二级分类，用其父级作为父级（新增兄弟二级）；否则为 null（新增一级） */
+        const curCat = st.categoryId ? Store.getCategory(st.categoryId) : null;
+        const parentId = curCat && curCat.parentId ? curCat.parentId : null;
+        Views.openCatModal(null, parentId, type);
+        break;
+      }
       case 'open-remind': Views.openRemindModal(null); break;
       case 'edit-remind': Views.openRemindModal(val); break;
       case 'save-remind': saveRemind(val || null); break;

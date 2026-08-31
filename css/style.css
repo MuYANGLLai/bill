@@ -827,6 +827,13 @@ body.is-record .view { padding: 0; max-width: none; }
 .cat-color-switch input { width: 18px; height: 18px; accent-color: var(--primary); cursor: pointer; }
 .cat-color-tip { font-style: normal; font-weight: 400; font-size: 12px; color: var(--muted); }
 
+/* ============ 排序管理 ============ */
+.sort-block { margin-bottom: 14px; padding-bottom: 12px; border-bottom: 1px dashed var(--border); }
+.sort-block:last-child { border-bottom: none; }
+.sort-label { font-size: 13px; font-weight: 600; margin-bottom: 6px; }
+.sort-desc-row { margin-top: 6px; font-size: 12.5px; }
+.sort-desc { color: var(--muted); font-size: 12px; }
+
 /* ============ 分类编辑：线条图标选择 ============ */
 .line-icon-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; }
 .line-icon-cell {

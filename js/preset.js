@@ -198,9 +198,9 @@ window.Preset = {
     { v: 'kai',    n: '楷体', f: '"Kaiti SC", "STKaiti", KaiTi, serif' }
   ],
   defaultAccounts: [
-    { name: '现金',     type: 'cash',       icon: '💵', color: '#FFB3BA', initialBalance: 1000 },
-    { name: '支付宝',   type: 'ewallet',    icon: '💙', color: '#B5EAD7', initialBalance: 5000 },
-    { name: '微信支付', type: 'ewallet',    icon: '💬', color: '#BAE1FF', initialBalance: 3000 },
-    { name: '储蓄卡',   type: 'debit',      icon: '💳', color: '#FFDFBA', initialBalance: 20000 }
+    { name: '现金',     type: 'cash',       icon: '💵', color: 'transparent', initialBalance: 0 },
+    { name: '支付宝',   type: 'ewallet',    icon: '💙', color: 'transparent', initialBalance: 0 },
+    { name: '微信支付', type: 'ewallet',    icon: '💬', color: 'transparent', initialBalance: 0 },
+    { name: '储蓄卡',   type: 'debit',      icon: '💳', color: 'transparent', initialBalance: 0 }
   ]
 };

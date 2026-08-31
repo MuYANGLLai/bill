@@ -76,8 +76,15 @@ window.Store = (() => {
         catIconColor: false,     // 分类图标颜色开关：false = 全部黑色
         catColorVersion: 'macaron-1',
         font: 'default',         // 字体：default | rounded | serif | hei | kai
-        accOrder: true,          // 账户页是否显示排序按钮
-        reminders: []            // 记账提醒：[{id, mode, time, weekDays, monthDay, note, enabled}]
+        accOrder: false,         // 账户页是否显示排序按钮（默认关闭）
+        reminders: [],           // 记账提醒：[{id, mode, time, weekDays, monthDay, note, enabled}]
+        budgets: { month: {}, year: {}, week: {} },   // 按周期存储的预算 {period: {key: {total, cats}}}
+        sort: {                  // 排序管理
+          cat1: { expense: { mode: 'freq', desc: false }, income: { mode: 'freq', desc: false } },
+          cat2: { expense: { mode: 'freq', desc: false }, income: { mode: 'freq', desc: false } },
+          acc: { mode: 'manual', desc: false }
+        },
+        funcs: { homeTextBill: true }  // 功能管理：首页文字记账入口开关
       },
       accounts: Preset.defaultAccounts.map(a => Object.assign({ id: uid(), includeAssets: true }, a)),
       categories: buildPresetCategories(),
@@ -184,10 +191,54 @@ window.Store = (() => {
         }
         if (data.settings.catIconColor === undefined) data.settings.catIconColor = false;
         if (data.settings.font === undefined) data.settings.font = 'default';
-        if (data.settings.accOrder === undefined) data.settings.accOrder = true;
+        if (data.settings.accOrder === undefined) data.settings.accOrder = false; // 账户排序默认关闭
+        if (data.settings.accOrderInit === undefined) { data.settings.accOrder = false; data.settings.accOrderInit = 'v1.115'; }
         if (!Array.isArray(data.settings.reminders)) data.settings.reminders = [];
-        /* 迁移：账户「计入总资产」标记默认 true */
-        data.accounts.forEach(a => { if (a.includeAssets === undefined) a.includeAssets = true; });
+        /* 迁移：预算按周期存储 */
+        if (!data.settings.budgets || typeof data.settings.budgets !== 'object') {
+          data.settings.budgets = { month: {}, year: {}, week: {} };
+          if (data.settings.monthBudget) {
+            const now = new Date();
+            const mk = now.getFullYear() + '-' + pad(now.getMonth() + 1);
+            data.settings.budgets.month[mk] = { total: data.settings.monthBudget, cats: Object.assign({}, data.settings.categoryBudgets || {}) };
+          }
+        }
+        /* 迁移：排序管理配置 */
+        if (!data.settings.sort) {
+          data.settings.sort = {
+            cat1: { expense: { mode: 'freq', desc: false }, income: { mode: 'freq', desc: false } },
+            cat2: { expense: { mode: 'freq', desc: false }, income: { mode: 'freq', desc: false } },
+            acc: { mode: 'manual', desc: false }
+          };
+        }
+        data.settings.sort.cat1 = data.settings.sort.cat1 || { expense: { mode: 'freq', desc: false }, income: { mode: 'freq', desc: false } };
+        data.settings.sort.cat2 = data.settings.sort.cat2 || { expense: { mode: 'freq', desc: false }, income: { mode: 'freq', desc: false } };
+        data.settings.sort.acc = data.settings.sort.acc || { mode: 'manual', desc: false };
+        ['cat1', 'cat2'].forEach(k => {
+          ['expense', 'income'].forEach(tp => {
+            const c = data.settings.sort[k][tp];
+            if (!c || !c.mode) data.settings.sort[k][tp] = { mode: 'freq', desc: false };
+            if (c && c.desc === undefined) c.desc = false;
+          });
+        });
+        if (!data.settings.sort.acc.mode) data.settings.sort.acc = { mode: 'manual', desc: false };
+        /* 迁移：功能管理 */
+        if (!data.settings.funcs) data.settings.funcs = { homeTextBill: true };
+        if (data.settings.funcs.homeTextBill === undefined) data.settings.funcs.homeTextBill = true;
+        /* 迁移：账户「计入总资产」标记默认 true；初始金额默认 0；默认透明色 */
+        data.accounts.forEach(a => {
+          if (a.includeAssets === undefined) a.includeAssets = true;
+          if (a.initialBalance === undefined) a.initialBalance = 0;
+        });
+        /* 迁移 v1.115：所有账户初始金额清零、默认透明色（一次性） */
+        if (data.settings.accInitCleanup !== 'v1.115') {
+          data.accounts.forEach(a => {
+            a.initialBalance = 0;
+            a.color = 'transparent';
+          });
+          data.settings.accInitCleanup = 'v1.115';
+          save();
+        }
         /* 迁移：删除指定人名收入分类（用户不再使用），相关账单归入该类型「其他」 */
         if (data.settings.incomeCleanup !== 'v1.87') {
           const REMOVE_INCOME = ['妈妈', '慧慧', '亮君', '双双', '林昌新', '利远瑞', '苏靖淇'];
@@ -254,6 +305,61 @@ window.Store = (() => {
       }
     });
     return subs.slice().sort((a, b) => (count[b.id] || 0) - (count[a.id] || 0));
+  }
+
+  /* 排序配置：level = cat1|cat2|acc，type 仅分类用 */
+  const sortCfg = (level, type) => {
+    const s = data.settings.sort || {};
+    if (level === 'acc') return s.acc || { mode: 'manual', desc: false };
+    const g = s[level] || {};
+    return g[type] || { mode: 'freq', desc: false };
+  };
+
+  /* 一级分类按配置排序：manual = 分类管理中的手动顺序（数组顺序），freq = 使用频率 */
+  function getRootCategoriesSorted(type) {
+    const cfg = sortCfg('cat1', type);
+    let list = getRootCategories(type);
+    if (cfg.mode === 'manual') {
+      list = list.slice();
+    } else {
+      const byUsage = getRootCategoriesByUsage(type);
+      const idx = {};
+      byUsage.forEach((c, i) => { idx[c.id] = i; });
+      list = list.slice().sort((a, b) => (idx[a.id] ?? 999) - (idx[b.id] ?? 999));
+    }
+    if (cfg.desc) list.reverse();
+    return list;
+  }
+
+  /* 二级分类按配置排序 */
+  function getSubCategoriesSorted(parentId) {
+    const parent = getCategory(parentId);
+    if (!parent) return getSubCategories(parentId);
+    const cfg = sortCfg('cat2', parent.type);
+    let list = getSubCategories(parentId);
+    if (cfg.mode !== 'manual') {
+      const byUsage = getSubCategoriesByUsage(parentId);
+      const idx = {};
+      byUsage.forEach((c, i) => { idx[c.id] = i; });
+      list = list.slice().sort((a, b) => (idx[a.id] ?? 999) - (idx[b.id] ?? 999));
+    } else {
+      list = list.slice();
+    }
+    if (cfg.desc) list.reverse();
+    return list;
+  }
+
+  /* 账户按配置排序：manual = 账户页手动顺序（数组顺序），amount = 余额，count = 账单笔数 */
+  function getAccountsSorted() {
+    const cfg = sortCfg('acc');
+    let list = getAccounts().slice();
+    if (cfg.mode === 'amount') {
+      list.sort((a, b) => accountBalance(b.id) - accountBalance(a.id));
+    } else if (cfg.mode === 'count') {
+      list.sort((a, b) => accountTxCount(b.id) - accountTxCount(a.id));
+    }
+    if (cfg.desc) list.reverse();
+    return list;
   }
 
   function addCategory(c) { c.id = uid(); data.categories.push(c); save(); return c; }
@@ -405,20 +511,80 @@ window.Store = (() => {
     return res;
   }
 
-  function budgetStatus(y, m) {
+  /* 预算按周期查询：period = month|year|week，key = 'YYYY-MM' | 'YYYY' | 'YYYY-Www' */
+  function budgetStatus(period, key) {
+    const budgets = data.settings.budgets || { month: {}, year: {}, week: {} };
+    const bk = (budgets[period] || {})[key] || {};
     let expense = 0;
     const catMap = {};
+    const inPeriod = t => {
+      if (t.type !== 'expense' || t.excludeBudget) return false;
+      if (period === 'month') return inMonth(t, parseInt(key.slice(0, 4), 10), parseInt(key.slice(5, 7), 10));
+      if (period === 'year') return t.date.slice(0, 4) === key.slice(0, 4);
+      /* week：按周一为一周起点计算 */
+      if (period === 'week') {
+        const m = key.match(/^(\d{4})-W(\d{1,2})$/);
+        if (!m) return false;
+        const y = parseInt(m[1], 10), wn = parseInt(m[2], 10);
+        const jan1 = new Date(y, 0, 1);
+        const firstMon = new Date(y, 0, 1 + ((1 - jan1.getDay() + 7) % 7));
+        const weekStart = new Date(firstMon);
+        weekStart.setDate(firstMon.getDate() + (wn - 1) * 7);
+        const weekEnd = new Date(weekStart);
+        weekEnd.setDate(weekStart.getDate() + 6);
+        const ds = y + '-' + pad(weekStart.getMonth() + 1) + '-' + pad(weekStart.getDate());
+        const de = weekEnd.getFullYear() + '-' + pad(weekEnd.getMonth() + 1) + '-' + pad(weekEnd.getDate());
+        return t.date >= ds && t.date <= de;
+      }
+      return false;
+    };
     for (const t of data.transactions) {
-      if (!inMonth(t, y, m) || t.type !== 'expense' || t.excludeBudget) continue;
+      if (!inPeriod(t)) continue;
       expense += t.amount;
       catMap[t.categoryId] = (catMap[t.categoryId] || 0) + t.amount;
     }
     const cats = getCategories('expense').map(c => ({
       category: c,
-      budget: data.settings.categoryBudgets[c.id] || 0,
+      budget: (bk.cats || {})[c.id] || 0,
       used: r2(catMap[c.id] || 0)
     })).filter(x => x.budget > 0);
-    return { total: { budget: data.settings.monthBudget, used: r2(expense) }, cats };
+    return { total: { budget: bk.total || 0, used: r2(expense) }, cats };
+  }
+
+  /* 保存某周期的总预算 */
+  function saveBudgetTotal(period, key, total) {
+    const budgets = data.settings.budgets || { month: {}, year: {}, week: {} };
+    budgets[period] = budgets[period] || {};
+    budgets[period][key] = budgets[period][key] || {};
+    budgets[period][key].total = Math.round((parseFloat(total) || 0) * 100) / 100;
+    data.settings.budgets = budgets;
+    save();
+  }
+
+  /* 保存某周期的分类预算 */
+  function saveCategoryBudget(period, key, catId, val) {
+    const budgets = data.settings.budgets || { month: {}, year: {}, week: {} };
+    budgets[period] = budgets[period] || {};
+    budgets[period][key] = budgets[period][key] || {};
+    budgets[period][key].cats = budgets[period][key].cats || {};
+    const v = Math.round((parseFloat(val) || 0) * 100) / 100;
+    if (v > 0) budgets[period][key].cats[catId] = v;
+    else delete budgets[period][key].cats[catId];
+    data.settings.budgets = budgets;
+    save();
+  }
+
+  /* 当前周期的 key */
+  function budgetKey(period, base) {
+    const d = base || new Date();
+    if (period === 'month') return d.getFullYear() + '-' + pad(d.getMonth() + 1);
+    if (period === 'year') return String(d.getFullYear());
+    /* week */
+    const jan1 = new Date(d.getFullYear(), 0, 1);
+    const firstMon = new Date(d.getFullYear(), 0, 1 + ((1 - jan1.getDay() + 7) % 7));
+    const days = Math.floor((d - firstMon) / 86400000);
+    const wn = Math.floor(days / 7) + 1;
+    return d.getFullYear() + '-W' + wn;
   }
 
   /* ---------- 借贷账户 ---------- */
@@ -536,10 +702,12 @@ window.Store = (() => {
   return {
     load, save, reset, uid, defaults, todayStr, nowTime,
     getCategories, getRootCategories, getRootCategoriesByUsage, getSubCategories, getSubCategoriesByUsage, getCategory, addCategory, updateCategory, removeCategory, categoryLabel,
+    getRootCategoriesSorted, getSubCategoriesSorted, getAccountsSorted, sortCfg,
     getAccounts, getAccount, addAccount, updateAccount, removeAccount,
     accountTxCount, accountBalance, totalAssets,
     addTransaction, getTransaction, updateTransaction, removeTransaction, getTransactions,
     monthStats, categoryStats, categoryStatsRange, dailyStats, monthlyTrend, budgetStatus,
+    saveBudgetTotal, saveCategoryBudget, budgetKey,
     getLoanAccounts, getLoanAccount, addLoanAccount, updateLoanAccount, removeLoanAccount, loanAccountTxCount,
     getLoans, getLoan, addLoan, updateLoan, removeLoan, settleLoan, loanSums,
     getRecurrings, getRecurring, addRecurring, updateRecurring, removeRecurring,

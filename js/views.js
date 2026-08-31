@@ -71,7 +71,8 @@ window.Views = (() => {
     const v = $('#view');
     const { y, m } = UI.parseMonthKey(S().month);
     const st = Store.monthStats(y, m);
-    const bStat = Store.budgetStatus(y, m);
+    /* 首页预算：跟随「月预算」，显示当前月 */
+    const bStat = Store.budgetStatus('month', S().month);
     const bPct = bStat.total.budget > 0 ? Math.min(100, Math.round(bStat.total.used / bStat.total.budget * 100)) : 0;
     const remain = Math.round((bStat.total.budget - bStat.total.used) * 100) / 100;
     const daysLeft = Math.max(0, UI.daysInMonth(y, m) - new Date().getDate() + 1);
@@ -208,11 +209,12 @@ window.Views = (() => {
             ? '<button class="btn btn-ghost btn-block bill-more" data-action="bill-more">加载更多账单（' + (boxTotal - showN) + ' 条）</button>'
             : '') +
         '</div>' +
-        /* 文字记账：右下角圆形浮动入口（主菜单上方） */
+        /* 文字记账：右下角圆形浮动入口（主菜单上方），可在设置→功能管理关闭 */
+        ((Store.data.settings.funcs && Store.data.settings.funcs.homeTextBill === false) ? '' :
         '<button class="fab-text-bill" data-action="text-bill" aria-label="文字记账">' +
           '<span class="fab-text-ico">' + UI.icon('pencil', 22) + '</span>' +
           '<span class="fab-text-label">文字记账</span>' +
-        '</button>' +
+        '</button>') +
       '</div>';
   }
 
@@ -221,7 +223,7 @@ window.Views = (() => {
     const box = $('#rec-cats');
     const st = S().record;
     if (!box || st.type === 'transfer') { if (box) box.innerHTML = ''; return; }
-    const cats = Store.getRootCategoriesByUsage(st.type); // 按使用频率降序
+    const cats = Store.getRootCategoriesSorted(st.type); // 按排序配置（手动/频率 + 正反序）
     const activeRoot = activeRootId();
     box.innerHTML = '<div class="cat-grid">' + cats.map(c =>
       '<button class="cat-item ' + (c.id === activeRoot ? 'active' : '') + '" style="--cat-color:' + c.color + ';--cat-tint:' + UI.hexToRgba(c.color, 0.13) + '" data-action="pick-cat" data-val="' + c.id + '">' +
@@ -243,7 +245,7 @@ window.Views = (() => {
     const st = S().record;
     if (st.type === 'transfer') { box.className = 'rec-subs'; box.innerHTML = ''; return; }
     const rootId = activeRootId();
-    const subs = Store.getSubCategoriesByUsage(rootId); // 按使用频率降序
+    const subs = Store.getSubCategoriesSorted(rootId); // 按排序配置（手动/频率 + 正反序）
     if (!rootId || !subs.length) { box.className = 'rec-subs'; box.innerHTML = ''; return; }
     const chip = (id, icon, name, active) =>
       '<button class="sub-chip' + (active ? ' active' : '') + '" data-action="pick-sub" data-val="' + id + '">' +
@@ -278,7 +280,7 @@ window.Views = (() => {
     UI.modal('选择账户',
       accs.map(a =>
         '<button class="acc-pick-row' + (a.id === st.accountId ? ' active' : '') + '" data-action="pick-acc" data-val="' + a.id + '">' +
-          '<span class="acc-mini" style="background:' + (a.color || '#2f9e44') + '">' + UI.catIcon(a.icon) + '</span>' +
+          '<span class="acc-mini" style="background:' + (a.color && a.color !== 'transparent' ? a.color : 'var(--border-soft)') + '">' + UI.catIcon(a.icon) + '</span>' +
           '<span class="rec-meta-txt">' + esc(a.name) + '</span>' +
           (a.hidden ? ' <em class="acc-hidden">已隐藏</em>' : '') +
         '</button>'
@@ -395,8 +397,8 @@ window.Views = (() => {
       }
     }
     if (st.type !== 'transfer' && !st.categoryId) {
-      /* 默认分类：按使用频率排序后的第一个（最常用） */
-      const cats = Store.getRootCategoriesByUsage(st.type);
+      /* 默认分类：按排序配置后的第一个 */
+      const cats = Store.getRootCategoriesSorted(st.type);
       st.categoryId = cats.length ? cats[0].id : null;
     }
 
@@ -417,6 +419,7 @@ window.Views = (() => {
           '<div id="rec-subs"></div>' +
           '<div id="rec-accs"></div>' +
           '<div class="rec-tools">' +
+            '<button class="btn btn-ghost btn-sm" data-action="rec-add-cat">' + UI.icon('plus', 15) + ' 新分类</button>' +
             '<button class="btn btn-ghost btn-sm" data-action="text-bill">' + UI.icon('pencil', 15) + ' 文字记账</button>' +
           '</div>' +
         '</div>' +
@@ -1311,30 +1314,53 @@ window.Views = (() => {
   /* ================= 预算 ================= */
   function budget() {
     const v = $('#view');
-    const { y, m } = UI.parseMonthKey(S().month);
-    const b = Store.budgetStatus(y, m);
+    /* 周期状态：period = month|year|week；key 如 2026-08 / 2026 / 2026-W35 */
+    const bs = S().budget || { period: 'month', key: '' };
+    const period = bs.period || 'month';
+    if (!bs.key) bs.key = Store.budgetKey(period);
+    /* 当前周期标签 */
+    let label = bs.key;
+    if (period === 'month') {
+      const { y, m } = UI.parseMonthKey(bs.key);
+      label = y + '年' + m + '月';
+    } else if (period === 'year') {
+      label = bs.key + ' 年';
+    } else {
+      label = '第 ' + bs.key.replace(/^\d{4}-W/, '') + ' 周（' + bs.key.slice(0, 4) + '）';
+    }
+    const b = Store.budgetStatus(period, bs.key);
     const total = b.total;
     const pct = total.budget > 0 ? Math.min(100, Math.round(total.used / total.budget * 100)) : 0;
-    const today = new Date().getDate();
-    const daysLeft = Math.max(0, UI.daysInMonth(y, m) - today + 1);
     const remain = Math.round((total.budget - total.used) * 100) / 100;
-    const dailyAvail = daysLeft > 0 ? Math.round(remain / daysLeft * 100) / 100 : 0;
-
     const withBudget = {};
     b.cats.forEach(x => { withBudget[x.category.id] = x; });
 
     v.innerHTML =
       '<div class="page">' +
-        '<div class="page-head"><h1>预算管理</h1><span class="month-label">' + UI.fmtMonthCn(S().month) + '</span></div>' +
+        '<div class="page-head"><h1>预算管理</h1>' +
+          '<div class="stat-ctl cat-ctl">' +
+            '<div class="seg">' +
+              [['month', '月'], ['year', '年'], ['week', '周']].map(p =>
+                '<button class="seg-btn ' + (period === p[0] ? 'active' : '') + '" data-action="budget-period" data-val="' + p[0] + '">' + p[1] + '</button>').join('') +
+            '</div>' +
+          '</div>' +
+        '</div>' +
+        '<div class="card stat-ctl-card">' +
+          '<div class="stat-ctl">' +
+            '<button class="btn btn-ghost btn-sm" data-action="budget-nav" data-d="-1">‹</button>' +
+            '<span class="stat-ctl-label">' + label + '</span>' +
+            '<button class="btn btn-ghost btn-sm" data-action="budget-nav" data-d="1">›</button>' +
+            '<button class="btn btn-ghost btn-sm" data-action="budget-today">今天</button>' +
+          '</div>' +
+        '</div>' +
         '<div class="card">' +
-          '<div class="field-inline"><label>本月总预算（¥）</label><input type="number" id="budget-total" min="0" step="100" value="' + (total.budget || '') + '" placeholder="0 = 不设预算">' +
+          '<div class="field-inline"><label>' + (period === 'month' ? '本月' : period === 'year' ? '本年' : '本周') + '总预算（¥）</label><input type="number" id="budget-total" min="0" step="100" value="' + (total.budget || '') + '" placeholder="0 = 不设预算">' +
           '<button class="btn btn-primary btn-sm" data-action="budget-total-save">保存</button></div>' +
           (total.budget > 0
             ? '<div class="progress ' + (pct >= 100 ? 'danger' : pct >= 80 ? 'warn' : '') + '"><i style="width:' + pct + '%"></i></div>' +
               '<div class="budget-meta">' +
                 '<span>已用 <b class="v-red">' + money(total.used) + '</b>（' + pct + '%）</span>' +
                 '<span>剩余 <b>' + money(remain) + '</b></span>' +
-                '<span>日均可用 <b>' + money(dailyAvail) + '</b></span>' +
               '</div>'
             : '<div class="data-tip">设置预算后，这里会显示使用进度与超支提醒。</div>') +
         '</div>' +
@@ -1347,7 +1373,7 @@ window.Views = (() => {
               '<div class="budget-cat-head"><span>' + UI.catIcon(c.icon) + ' ' + esc(c.name) + '</span>' +
               (x ? '<span class="' + (p >= 100 ? 'v-red' : 'v-muted') + '">' + money(x.used) + ' / ' + money(x.budget) + '</span>' : '') + '</div>' +
               (x ? '<div class="progress ' + (p >= 100 ? 'danger' : p >= 80 ? 'warn' : '') + '"><i style="width:' + p + '%"></i></div>' : '') +
-              '<div class="budget-cat-foot"><input type="number" class="budget-cat-input" data-budget-cat="' + c.id + '" min="0" step="50" value="' + (x ? x.budget : '') + '" placeholder="0 = 不设预算"><span>¥/月</span></div>' +
+              '<div class="budget-cat-foot"><input type="number" class="budget-cat-input" data-budget-cat="' + c.id + '" min="0" step="50" value="' + (x ? x.budget : '') + '" placeholder="0 = 不设预算"><span>¥/' + (period === 'month' ? '月' : period === 'year' ? '年' : '周') + '</span></div>' +
             '</div>';
           }).join('') +
         '</div>' +
@@ -1357,17 +1383,18 @@ window.Views = (() => {
   /* ================= 账户 ================= */
   function accounts() {
     const v = $('#view');
-    const accs = Store.getAccounts();
+    const accs = Store.getAccountsSorted(); // 按排序配置（手动/金额/账单数 + 正反序）
     const sums = Store.loanSums();
     const accOpen = S().accOpen || { acc: true };
-    const orderOn = Store.data.settings.accOrder !== false;
+    const accCfg = Store.sortCfg('acc');
+    const orderOn = accCfg.mode === 'manual'; // 手动排序模式下显示 ↑↓ 按钮
     const accBody = accs.length
       ? '<div class="acc-grid">' + accs.map((a, i) => {
           const bal = Store.accountBalance(a.id);
           const t = Preset.accountTypes[a.type] || Preset.accountTypes.other;
           return '<div class="acc-row">' +
             '<button class="acc-card" data-action="go-acc" data-val="' + a.id + '" data-acc-id="' + a.id + '">' +
-              '<span class="acc-ico" style="background:' + (a.color || '#2f9e44') + '">' + UI.catIcon(a.icon) + '</span>' +
+              '<span class="acc-ico" style="background:' + (a.color && a.color !== 'transparent' ? a.color : 'var(--border-soft)') + '">' + UI.catIcon(a.icon) + '</span>' +
               '<span class="acc-main"><span class="acc-name">' + esc(a.name) + (a.hidden ? ' <em class="acc-hidden">已隐藏</em>' : '') + '</span>' +
               '<span class="acc-type">' + t.name + '</span></span>' +
               '<span class="acc-bal">' + money(bal) + '</span>' +
@@ -1385,7 +1412,6 @@ window.Views = (() => {
       '<div class="page acc-page">' +
         '<div class="page-head"><h1>账户管理</h1>' +
           '<div class="head-actions">' +
-            '<button class="btn ' + (orderOn ? 'btn-primary' : 'btn-ghost') + ' btn-sm" data-action="acc-order-toggle">排序' + (orderOn ? ' ✓' : '') + '</button>' +
             '<button class="btn btn-primary btn-sm btn-macaron" data-action="add-acc">＋ 新账户</button>' +
           '</div></div>' +
         '<div class="card assets-card"><div class="assets-label">总资产</div><div class="assets-val">' + money(Store.totalAssets()) + '</div></div>' +
@@ -1407,7 +1433,6 @@ window.Views = (() => {
           '<div class="set-body"' + (accOpen.acc ? '' : ' style="display:none"') + '>' + accBody + '</div>' +
         '</div>' +
       '</div>';
-    /* 账户拖拽排序 */
   }
 
   /* ---------- 账户详情页 ---------- */
@@ -1456,7 +1481,7 @@ window.Views = (() => {
         /* 余额栏：图标+名称+余额 顶部，收入/支出 上下排列底部 */
         '<div class="card assets-card acc-detail-head">' +
           '<div class="acc-detail-top">' +
-            '<span class="acc-ico" style="background:' + (a.color || '#2f9e44') + '">' + UI.catIcon(a.icon) + '</span>' +
+            '<span class="acc-ico" style="background:' + (a.color && a.color !== 'transparent' ? a.color : 'var(--border-soft)') + '">' + UI.catIcon(a.icon) + '</span>' +
             '<div class="acc-detail-main">' +
               '<div class="acc-detail-name">' + esc(a.name) + (a.hidden ? ' <em class="acc-hidden">已隐藏</em>' : '') + '</div>' +
               '<div class="acc-detail-type">' + ((Preset.accountTypes[a.type] || {}).name || '') + '</div>' +
@@ -1585,7 +1610,7 @@ window.Views = (() => {
     /* 转入账户五列网格：图标 + 名称 + 余额 */
     const grid = others.map(a =>
       '<button type="button" class="tf-acc-cell' + (S().transfer && S().transfer.to === a.id ? ' active' : '') + '" data-action="tf-pick" data-val="' + a.id + '">' +
-        '<span class="acc-mini" style="background:' + (a.color || '#2f9e44') + '">' + UI.catIcon(a.icon) + '</span>' +
+        '<span class="acc-mini" style="background:' + (a.color && a.color !== 'transparent' ? a.color : 'var(--border-soft)') + '">' + UI.catIcon(a.icon) + '</span>' +
         '<span class="tf-acc-name">' + esc(a.name) + '</span>' +
         '<span class="tf-acc-bal">' + money(Store.accountBalance(a.id)) + '</span>' +
       '</button>'
@@ -1607,7 +1632,7 @@ window.Views = (() => {
         '<div class="card">' +
           '<div class="field-inline"><label>转出账户</label>' +
             '<span class="tf-from-fixed">' +
-              '<span class="acc-mini" style="background:' + (fromAcc.color || '#2f9e44') + '">' + UI.catIcon(fromAcc.icon) + '</span>' +
+              '<span class="acc-mini" style="background:' + (fromAcc.color && fromAcc.color !== 'transparent' ? fromAcc.color : 'var(--border-soft)') + '">' + UI.catIcon(fromAcc.icon) + '</span>' +
               '<span>' + esc(fromAcc.name) + '</span>' +
               '<span class="tf-from-bal">余额 ' + money(Store.accountBalance(fromId)) + '</span>' +
             '</span>' +
@@ -1684,7 +1709,7 @@ window.Views = (() => {
     const v = $('#view');
     const s = Store.data.settings;
     const t = S().settingsCatType;
-    const roots = Store.getRootCategories(t);
+    const roots = Store.getRootCategoriesSorted(t);
     const expand = S().expandCats || {};
     const recs = Store.getRecurrings();
     const recsEnabled = recs.filter(r => r.enabled).length;
@@ -1711,7 +1736,7 @@ window.Views = (() => {
         '<button class="seg-btn ' + (t === 'expense' ? 'active' : '') + '" data-action="set-cat-type" data-val="expense">支出分类</button>' +
         '<button class="seg-btn ' + (t === 'income' ? 'active' : '') + '" data-action="set-cat-type" data-val="income">收入分类</button>' +
       '</div>' +
-      roots.map(c => {
+      roots.map((c, ri) => {
         const subs = Store.getSubCategories(c.id);
         const openC = !!expand[c.id];
         return '<div class="cat-manage-row">' +
@@ -1719,6 +1744,8 @@ window.Views = (() => {
           '<span class="cat-manage-name">' + esc(c.name) +
             (subs.length ? ' <em class="cat-sub-count">' + subs.length + ' 个子分类</em>' : '') + '</span>' +
           '<span class="cat-manage-actions">' +
+            '<button class="acc-order-btn" data-action="cat-move" data-d="-1" data-val="' + c.id + '"' + (ri === 0 ? ' disabled' : '') + '>↑</button>' +
+            '<button class="acc-order-btn" data-action="cat-move" data-d="1" data-val="' + c.id + '"' + (ri === roots.length - 1 ? ' disabled' : '') + '>↓</button>' +
             (subs.length ? '<button class="btn btn-ghost btn-sm" data-action="toggle-cat-subs" data-val="' + c.id + '">' + (openC ? '收起' : '展开') + '</button>' : '') +
             '<button class="btn btn-ghost btn-sm" data-action="add-sub-cat" data-val="' + c.id + '">＋子</button>' +
             '<button class="btn btn-ghost btn-sm" data-action="edit-cat" data-val="' + c.id + '">编辑</button>' +
@@ -1726,11 +1753,13 @@ window.Views = (() => {
           '</span>' +
         '</div>' +
         (openC && subs.length
-          ? subs.map(sub =>
+          ? subs.map((sub, si) =>
               '<div class="cat-manage-row cat-sub-row">' +
                 '<span class="cat-manage-ico"' + iconStyle(sub.color) + '>' + UI.catIcon(sub.icon) + '</span>' +
                 '<span class="cat-manage-name">↳ ' + esc(sub.name) + '</span>' +
                 '<span class="cat-manage-actions">' +
+                  '<button class="acc-order-btn" data-action="sub-move" data-d="-1" data-parent="' + c.id + '" data-val="' + sub.id + '"' + (si === 0 ? ' disabled' : '') + '>↑</button>' +
+                  '<button class="acc-order-btn" data-action="sub-move" data-d="1" data-parent="' + c.id + '" data-val="' + sub.id + '"' + (si === subs.length - 1 ? ' disabled' : '') + '>↓</button>' +
                   '<button class="btn btn-ghost btn-sm" data-action="edit-cat" data-val="' + sub.id + '">编辑</button>' +
                   '<button class="btn btn-ghost btn-sm danger-text" data-action="del-cat" data-val="' + sub.id + '">删除</button>' +
                 '</span>' +
@@ -1761,6 +1790,43 @@ window.Views = (() => {
           '<button class="btn ' + (s.font === f.v ? 'btn-primary' : 'btn-ghost') + '" data-action="font-set" data-val="' + f.v + '">' + f.n + '</button>'
         ).join('') +
       '</div>';
+
+    /* 排序管理 */
+    const sortCfg = Store.data.settings.sort || {};
+    const sortSeg = (level, type, label) => {
+      const cfg = (sortCfg[level] || {})[type] || { mode: 'freq', desc: false };
+      const modes = level === 'acc'
+        ? [['manual', '手动'], ['amount', '按金额'], ['count', '按账单数']]
+        : [['manual', '手动'], ['freq', '按使用频率']];
+      return '<div class="sort-block">' +
+        '<div class="sort-label">' + label + '</div>' +
+        '<div class="seg">' + modes.map(md =>
+          '<button class="seg-btn ' + (cfg.mode === md[0] ? 'active' : '') + '" data-action="sort-mode" data-level="' + level + '" data-type="' + (type || '') + '" data-val="' + md[0] + '">' + md[1] + '</button>'
+        ).join('') + '</div>' +
+        '<div class="sort-desc-row">' +
+          (cfg.mode === 'manual'
+            ? '<span class="sort-desc">手动排序请在对应管理页用 ↑↓ 调整</span>'
+            : '<label class="check"><input type="checkbox" data-action="sort-desc" data-level="' + level + '" data-type="' + (type || '') + '"' + (cfg.desc ? ' checked' : '') + '> 倒序</label>') +
+        '</div>' +
+      '</div>';
+    };
+    const sortBody =
+      '<div class="data-tip" style="margin-bottom:8px">分类手动排序在「分类管理」中调整；账户手动排序在「账户」页调整。使用手动排序后自动切换为手动模式。</div>' +
+      sortSeg('cat1', 'expense', '一级支出分类') +
+      sortSeg('cat1', 'income', '一级收入分类') +
+      sortSeg('cat2', 'expense', '二级支出分类') +
+      sortSeg('cat2', 'income', '二级收入分类') +
+      sortSeg('acc', '', '账户');
+
+    /* 功能管理 */
+    const funcs = Store.data.settings.funcs || { homeTextBill: true };
+    const funcBody =
+      '<label class="check">' +
+        '<input type="checkbox" data-action="func-toggle" data-val="homeTextBill"' + (funcs.homeTextBill !== false ? ' checked' : '') + '> ' +
+        '<span>首页文字记账</span>' +
+        '<em class="cat-color-tip">' + (funcs.homeTextBill !== false ? '已开启：首页右下角显示「文字记账」圆形按钮' : '已关闭：首页隐藏文字记账入口') + '</em>' +
+      '</label>' +
+      '<div class="data-tip">控制首页右下角「文字记账」快捷入口是否显示。</div>';
 
     /* 记账提醒 */
     const reminders = Store.data.settings.reminders || [];
@@ -1823,7 +1889,7 @@ window.Views = (() => {
 
     /* 关于（含安装到桌面） */
     const aboutBody =
-      '<div class="about-name">🧾 轻账单 LiteBill<span class="about-ver">' + ((window.App && App.VERSION) || 'v1.114.0') + '</span></div>' +
+      '<div class="about-name">🧾 轻账单 LiteBill<span class="about-ver">' + ((window.App && App.VERSION) || 'v1.115.0') + '</span></div>' +
       '<div class="about-desc">本地优先的个人记账应用：记账、分类、账户、统计、预算、借贷、周期账单、文字记账、导入导出。数据不离开你的设备。</div>' +
       '<div class="about-install">' + installBody + '</div>' +
       '<div class="about-update">' +
@@ -1843,6 +1909,8 @@ window.Views = (() => {
         item('rec', 'calendar', '周期账单', recBody) +
         item('remind', 'time', '记账提醒', remindBody) +
         item('theme', 'palette', '外观', themeBody) +
+        item('sort', 'list', '排序管理', sortBody) +
+        item('func', 'gear', '功能管理', funcBody) +
         item('data', 'data', '数据管理', dataBody) +
         item('about', 'info', '关于', aboutBody) +
       '</div>';
@@ -1895,12 +1963,13 @@ window.Views = (() => {
   }
 
   /* ---------- 分类弹窗（parentId 用于创建二级分类） ---------- */
-  function openCatModal(id, parentId) {
+  function openCatModal(id, parentId, typeHint) {
     const c = id ? Store.getCategory(id) : null;
     const parent = parentId ? Store.getCategory(parentId) : null;
-    const type = c ? c.type : (parent ? parent.type : S().settingsCatType);
+    const type = c ? c.type : (parent ? parent.type : (typeHint || S().settingsCatType));
     const title = c ? '编辑分类' : (parent ? '新增「' + parent.name + '」子分类' : '新增' + (type === 'expense' ? '支出' : '收入') + '分类');
     S().pendingCatParent = parentId || null;
+    S().settingsCatType = type;
     /* 一级折叠菜单（图标/颜色，默认收起） */
     const fold = (key, ftitle, body) =>
       '<div class="modal-fold">' +
