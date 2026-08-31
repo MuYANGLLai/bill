@@ -6,7 +6,7 @@ window.App = (() => {
   const ymd = d => d.getFullYear() + '-' + UI.pad(d.getMonth() + 1) + '-' + UI.pad(d.getDate());
   const curWeekStart = () => { const d = new Date(); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); return ymd(d); };
 
-  const APP_VERSION = 'v1.115.0'; // 当前版本（与 sw.js 缓存名同步，bump 时一起更新）
+  const APP_VERSION = 'v1.116.0'; // 当前版本（与 sw.js 缓存名同步，bump 时一起更新）
 
   const state = {
     month: UI.monthKey(new Date().getFullYear(), new Date().getMonth() + 1),
@@ -410,6 +410,7 @@ window.App = (() => {
     if (!c) return;
     const subs = Store.getSubCategories(id);
     const tip = subs.length ? '（含 ' + subs.length + ' 个子分类，将一并删除，其账单归入「其他」）' : '，其下账单将归入「其他」';
+    closeModal(); // 若从分类编辑弹窗进入，先关闭编辑弹窗
     UI.confirm('删除分类「' + esc(c.name) + '」' + tip + '，确定删除？').then(ok => {
       if (!ok) return;
       Store.removeCategory(id);
@@ -1165,6 +1166,14 @@ window.App = (() => {
         if (!g) break;
         g.desc = !!el.checked;
         Store.save();
+        Views.settings();
+        break;
+      }
+      case 'acc-order': {
+        /* 排序管理：账户手动模式下是否在账户页显示排序按钮 */
+        Store.data.settings.accOrder = !!el.checked;
+        Store.save();
+        UI.toast(el.checked ? '账户页将显示排序按钮' : '账户页已隐藏排序按钮');
         Views.settings();
         break;
       }

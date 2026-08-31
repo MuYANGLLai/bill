@@ -1387,7 +1387,7 @@ window.Views = (() => {
     const sums = Store.loanSums();
     const accOpen = S().accOpen || { acc: true };
     const accCfg = Store.sortCfg('acc');
-    const orderOn = accCfg.mode === 'manual'; // 手动排序模式下显示 ↑↓ 按钮
+    const orderOn = accCfg.mode === 'manual' && !!Store.data.settings.accOrder; // 手动模式 + 开启「账户页显示排序按钮」才显示 ↑↓
     const accBody = accs.length
       ? '<div class="acc-grid">' + accs.map((a, i) => {
           const bal = Store.accountBalance(a.id);
@@ -1749,7 +1749,6 @@ window.Views = (() => {
             (subs.length ? '<button class="btn btn-ghost btn-sm" data-action="toggle-cat-subs" data-val="' + c.id + '">' + (openC ? '收起' : '展开') + '</button>' : '') +
             '<button class="btn btn-ghost btn-sm" data-action="add-sub-cat" data-val="' + c.id + '">＋子</button>' +
             '<button class="btn btn-ghost btn-sm" data-action="edit-cat" data-val="' + c.id + '">编辑</button>' +
-            '<button class="btn btn-ghost btn-sm danger-text" data-action="del-cat" data-val="' + c.id + '">删除</button>' +
           '</span>' +
         '</div>' +
         (openC && subs.length
@@ -1761,7 +1760,6 @@ window.Views = (() => {
                   '<button class="acc-order-btn" data-action="sub-move" data-d="-1" data-parent="' + c.id + '" data-val="' + sub.id + '"' + (si === 0 ? ' disabled' : '') + '>↑</button>' +
                   '<button class="acc-order-btn" data-action="sub-move" data-d="1" data-parent="' + c.id + '" data-val="' + sub.id + '"' + (si === subs.length - 1 ? ' disabled' : '') + '>↓</button>' +
                   '<button class="btn btn-ghost btn-sm" data-action="edit-cat" data-val="' + sub.id + '">编辑</button>' +
-                  '<button class="btn btn-ghost btn-sm danger-text" data-action="del-cat" data-val="' + sub.id + '">删除</button>' +
                 '</span>' +
               '</div>'
             ).join('')
@@ -1794,20 +1792,27 @@ window.Views = (() => {
     /* 排序管理 */
     const sortCfg = Store.data.settings.sort || {};
     const sortSeg = (level, type, label) => {
-      const cfg = (sortCfg[level] || {})[type] || { mode: 'freq', desc: false };
+      /* 账户排序配置从 sort.acc 读取（type 为空），分类从 sort[level][type] 读取，保证账户模式按钮高亮/倒序与分类一致 */
+      const cfg = level === 'acc'
+        ? (sortCfg.acc || { mode: 'manual', desc: false })
+        : ((sortCfg[level] || {})[type] || { mode: 'freq', desc: false });
       const modes = level === 'acc'
         ? [['manual', '手动'], ['amount', '按金额'], ['count', '按账单数']]
         : [['manual', '手动'], ['freq', '按使用频率']];
+      let descRow;
+      if (cfg.mode === 'manual') {
+        descRow = level === 'acc'
+          ? '<label class="check"><input type="checkbox" data-action="acc-order"' + (Store.data.settings.accOrder ? ' checked' : '') + '> 账户页显示排序按钮（↑↓）</label>'
+          : '<span class="sort-desc">手动排序请在对应管理页用 ↑↓ 调整</span>';
+      } else {
+        descRow = '<label class="check"><input type="checkbox" data-action="sort-desc" data-level="' + level + '" data-type="' + (type || '') + '"' + (cfg.desc ? ' checked' : '') + '> 倒序</label>';
+      }
       return '<div class="sort-block">' +
         '<div class="sort-label">' + label + '</div>' +
         '<div class="seg">' + modes.map(md =>
           '<button class="seg-btn ' + (cfg.mode === md[0] ? 'active' : '') + '" data-action="sort-mode" data-level="' + level + '" data-type="' + (type || '') + '" data-val="' + md[0] + '">' + md[1] + '</button>'
         ).join('') + '</div>' +
-        '<div class="sort-desc-row">' +
-          (cfg.mode === 'manual'
-            ? '<span class="sort-desc">手动排序请在对应管理页用 ↑↓ 调整</span>'
-            : '<label class="check"><input type="checkbox" data-action="sort-desc" data-level="' + level + '" data-type="' + (type || '') + '"' + (cfg.desc ? ' checked' : '') + '> 倒序</label>') +
-        '</div>' +
+        '<div class="sort-desc-row">' + descRow + '</div>' +
       '</div>';
     };
     const sortBody =
@@ -1889,7 +1894,7 @@ window.Views = (() => {
 
     /* 关于（含安装到桌面） */
     const aboutBody =
-      '<div class="about-name">🧾 轻账单 LiteBill<span class="about-ver">' + ((window.App && App.VERSION) || 'v1.115.0') + '</span></div>' +
+      '<div class="about-name">🧾 轻账单 LiteBill<span class="about-ver">' + ((window.App && App.VERSION) || 'v1.116.0') + '</span></div>' +
       '<div class="about-desc">本地优先的个人记账应用：记账、分类、账户、统计、预算、借贷、周期账单、文字记账、导入导出。数据不离开你的设备。</div>' +
       '<div class="about-install">' + installBody + '</div>' +
       '<div class="about-update">' +
@@ -1992,8 +1997,10 @@ window.Views = (() => {
       '<div class="field"><label>分类名称</label><input id="cat-name" value="' + (c ? esc(c.name) : '') + '" placeholder="如：宠物"></div>' +
       fold('ico', '图标（线条简约风）', icoBody) +
       fold('color', '颜色（马卡龙）', colorBody) +
-      '<div class="modal-actions"><button class="btn btn-ghost" data-action="modal-close">取消</button>' +
-      '<button class="btn btn-primary" data-action="save-cat" data-val="' + (c ? c.id : '') + '">保存</button></div>');
+      '<div class="modal-actions">' +
+        (c ? '<button class="btn btn-danger" data-action="del-cat" data-val="' + c.id + '">删除</button>' : '') +
+        '<button class="btn btn-ghost" data-action="modal-close">取消</button>' +
+        '<button class="btn btn-primary" data-action="save-cat" data-val="' + (c ? c.id : '') + '">保存</button></div>');
     const box = modal.box;
     /* 折叠菜单展开/收起 */
     box.querySelectorAll('[data-fold]').forEach(h => h.addEventListener('click', () => {
