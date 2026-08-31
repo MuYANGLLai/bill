@@ -541,7 +541,10 @@ window.Store = (() => {
     for (const t of data.transactions) {
       if (!inPeriod(t)) continue;
       expense += t.amount;
-      catMap[t.categoryId] = (catMap[t.categoryId] || 0) + t.amount;
+      /* 二级分类账单计入其一级分类（分类预算按一级分类统计） */
+      const c = getCategory(t.categoryId);
+      const rootId = c && c.parentId ? c.parentId : t.categoryId;
+      catMap[rootId] = (catMap[rootId] || 0) + t.amount;
     }
     const cats = getCategories('expense').map(c => ({
       category: c,

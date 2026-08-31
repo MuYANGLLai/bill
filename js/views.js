@@ -1312,6 +1312,45 @@ window.Views = (() => {
   }
 
   /* ================= 预算 ================= */
+  /* 周期天数信息：用于计算 日均预算 / 日均支出 / 今日剩余预算 */
+  function periodDayInfo(period, key) {
+    const now = new Date();
+    const today = now;
+    if (period === 'month') {
+      const { y, m } = UI.parseMonthKey(key);
+      const daysIn = UI.daysInMonth(y, m);
+      const start = new Date(y, m - 1, 1);
+      const end = new Date(y, m, 1);
+      const isCur = today >= start && today < end;
+      const dayOf = isCur ? today.getDate() : (today >= end ? daysIn : 0);
+      const daysLeft = isCur ? Math.max(0, daysIn - today.getDate() + 1) : 0;
+      return { daysIn, dayOf, daysLeft };
+    }
+    if (period === 'year') {
+      const y = parseInt(key, 10);
+      const daysIn = (y % 4 === 0 && y % 100 !== 0) || y % 400 === 0 ? 366 : 365;
+      const start = new Date(y, 0, 1);
+      const end = new Date(y + 1, 0, 1);
+      const isCur = today >= start && today < end;
+      const dayOf = isCur ? Math.floor((today - start) / 86400000) + 1 : (today >= end ? daysIn : 0);
+      const daysLeft = isCur ? daysIn - dayOf : 0;
+      return { daysIn, dayOf, daysLeft };
+    }
+    /* week */
+    const daysIn = 7;
+    const m = key.match(/^(\d{4})-W(\d{1,2})$/);
+    if (!m) return { daysIn, dayOf: 0, daysLeft: 0 };
+    const y = parseInt(m[1], 10), wn = parseInt(m[2], 10);
+    const jan1 = new Date(y, 0, 1);
+    const firstMon = new Date(y, 0, 1 + ((1 - jan1.getDay() + 7) % 7));
+    const weekStart = new Date(firstMon); weekStart.setDate(firstMon.getDate() + (wn - 1) * 7);
+    const weekEnd = new Date(weekStart); weekEnd.setDate(weekStart.getDate() + 7);
+    const isCur = today >= weekStart && today < weekEnd;
+    const dayOf = isCur ? Math.floor((today - weekStart) / 86400000) + 1 : (today >= weekEnd ? 7 : 0);
+    const daysLeft = isCur ? 7 - dayOf : 0;
+    return { daysIn, dayOf, daysLeft };
+  }
+
   function budget() {
     const v = $('#view');
     /* 周期状态：period = month|year|week；key 如 2026-08 / 2026 / 2026-W35 */
@@ -1332,6 +1371,11 @@ window.Views = (() => {
     const total = b.total;
     const pct = total.budget > 0 ? Math.min(100, Math.round(total.used / total.budget * 100)) : 0;
     const remain = Math.round((total.budget - total.used) * 100) / 100;
+    /* 日均预算 / 日均支出 / 今日剩余预算 */
+    const di = periodDayInfo(period, bs.key);
+    const dailyBudget = di.daysIn > 0 ? Math.round(total.budget / di.daysIn * 100) / 100 : 0;
+    const dailyExpense = di.dayOf > 0 ? Math.round(total.used / di.dayOf * 100) / 100 : 0;
+    const todayRemain = di.daysLeft > 0 ? Math.round((total.budget - total.used) / di.daysLeft * 100) / 100 : 0;
     const withBudget = {};
     b.cats.forEach(x => { withBudget[x.category.id] = x; });
 
@@ -1361,6 +1405,11 @@ window.Views = (() => {
               '<div class="budget-meta">' +
                 '<span>已用 <b class="v-red">' + money(total.used) + '</b>（' + pct + '%）</span>' +
                 '<span>剩余 <b>' + money(remain) + '</b></span>' +
+              '</div>' +
+              '<div class="budget-meta" style="margin-top:8px;padding-top:8px;border-top:1px dashed var(--border-soft)">' +
+                '<span>日均预算 <b>' + money(dailyBudget) + '</b></span>' +
+                '<span>日均支出 <b class="v-red">' + money(dailyExpense) + '</b></span>' +
+                '<span>今日剩余预算 <b class="v-green">' + money(todayRemain) + '</b></span>' +
               '</div>'
             : '<div class="data-tip">设置预算后，这里会显示使用进度与超支提醒。</div>') +
         '</div>' +
@@ -1894,7 +1943,7 @@ window.Views = (() => {
 
     /* 关于（含安装到桌面） */
     const aboutBody =
-      '<div class="about-name">🧾 轻账单 LiteBill<span class="about-ver">' + ((window.App && App.VERSION) || 'v1.117.0') + '</span></div>' +
+      '<div class="about-name">🧾 轻账单 LiteBill<span class="about-ver">' + ((window.App && App.VERSION) || 'v1.118.0') + '</span></div>' +
       '<div class="about-desc">本地优先的个人记账应用：记账、分类、账户、统计、预算、借贷、周期账单、文字记账、导入导出。数据不离开你的设备。</div>' +
       '<div class="about-install">' + installBody + '</div>' +
       '<div class="about-update">' +

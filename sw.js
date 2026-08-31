@@ -1,5 +1,5 @@
 /* 轻账单 Service Worker：缓存优先，离线可用 */
-const CACHE = 'litebill-v1.117.0';
+const CACHE = 'litebill-v1.118.0';
 const ASSETS = [
   './',
   './index.html',
