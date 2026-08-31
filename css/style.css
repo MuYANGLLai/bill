@@ -23,25 +23,25 @@
 }
 [data-theme="dark"] {
   color-scheme: dark;
-  --bg: #1d2621;
-  --card: #26322b;
-  --text: #e6efe9;
-  --muted: #9db2a6;
-  --border: #36453c;
-  --border-soft: #2c3831;
+  --bg: #1d211f;
+  --card: #252b28;
+  --text: #e6ece8;
+  --muted: #98a39c;
+  --border: #35403a;
+  --border-soft: #2c332f;
   --primary: #B5EAD7;
   --primary-2: #A4E2C5;
-  --primary-soft: rgba(181, 234, 215, 0.16);
+  --primary-soft: rgba(181, 234, 215, 0.14);
   --on-primary: #1c3a2a;
   --danger: #f0797c;
   --success: #7fd6b0;
   --warning: #f6b95c;
   --shadow: 0 1px 2px rgba(0, 0, 0, 0.25), 0 10px 30px -12px rgba(0, 0, 0, 0.45);
-  --input-bg: #2b3831;
-  --key-bg: #2b3831;
-  --seg-bg: #2b3831;
-  --sidebar: #19211c;
-  --modal-overlay: rgba(10, 16, 12, 0.55);
+  --input-bg: #29312d;
+  --key-bg: #29312d;
+  --seg-bg: #29312d;
+  --sidebar: #181d1a;
+  --modal-overlay: rgba(8, 12, 10, 0.55);
 }
 
 /* ============ 基础 ============ */
@@ -331,6 +331,7 @@ input[type="number"] { -moz-appearance: textfield; }
 .cat-manage-ico { width: 34px; height: 34px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 16px; color: var(--text); flex-shrink: 0; }
 .cat-manage-name { flex: 1; font-size: 14.5px; font-weight: 600; }
 .cat-manage-actions { display: flex; gap: 6px; }
+.cat-manage-actions .acc-order-btn { padding: 1px 7px; font-size: 12.5px; border-radius: 5px; }
 .theme-row, .data-actions { display: flex; gap: 9px; flex-wrap: wrap; }
 .theme-row.theme-font { align-items: center; margin-top: 10px; }
 .theme-label { font-size: 13px; color: var(--muted); margin-right: 2px; }
@@ -720,7 +721,7 @@ input[type="number"] { -moz-appearance: textfield; }
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
     z-index: 50;
   }
-  [data-theme="dark"] .sidebar { background: rgba(25, 33, 28, 0.55); }
+  [data-theme="dark"] .sidebar { background: rgba(24, 29, 26, 0.55); }
   .logo, .sidebar-foot { display: none; }
   .nav { flex-direction: row; width: 100%; justify-content: space-around; gap: 2px; }
   .nav-item { flex-direction: column; gap: 2px; padding: 5px 2px; font-size: 10px; border-radius: 10px; flex: 1; align-items: center; }
@@ -1062,22 +1063,22 @@ body.is-record .view { padding: 0; max-width: none; }
 
 /* ============ 深色模式：马卡龙浅绿柔和对比（资产卡 + 透明色块） ============ */
 [data-theme="dark"] .assets-card {
-  background: linear-gradient(135deg, #2b3a32, #223029);
-  color: #e6efe9;
+  background: linear-gradient(135deg, #2a332e, #222a26);
+  color: #e6ece8;
 }
 [data-theme="dark"] .assets-card .as-label,
-[data-theme="dark"] .assets-card .assets-label { color: #9db2a6; }
+[data-theme="dark"] .assets-card .assets-label { color: #98a39c; }
 [data-theme="dark"] .assets-card .assets-budget-head,
 [data-theme="dark"] .assets-card .assets-budget-meta,
-[data-theme="dark"] .assets-card .assets-budget-empty { color: #c8d8ce; }
+[data-theme="dark"] .assets-card .assets-budget-empty { color: #c4cdc7; }
 [data-theme="dark"] .assets-card .as-income { color: #7fd6b0; }
-[data-theme="dark"] .assets-card .assets-budget { border-top-color: rgba(181, 234, 215, 0.3); }
+[data-theme="dark"] .assets-card .assets-budget { border-top-color: rgba(181, 234, 215, 0.28); }
 [data-theme="dark"] .assets-card .assets-budget-head .btn-ghost,
 [data-theme="dark"] .assets-card .assets-budget-empty .btn-ghost {
   color: #A4E2C5;
   border-color: rgba(164, 226, 197, 0.35);
 }
 [data-theme="dark"] .color-cell.transparent {
-  background: repeating-conic-gradient(#3a463f 0% 25%, #2b3831 0% 50%) 0 0/12px 12px;
-  border-color: #55635c;
+  background: repeating-conic-gradient(#3a413d 0% 25%, #29312d 0% 50%) 0 0/12px 12px;
+  border-color: #4f5a54;
 }
