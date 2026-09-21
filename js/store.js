@@ -170,6 +170,20 @@ window.Store = (() => {
           data.settings.colorVersion = 'macaron-1';
           save();
         }
+        /* 迁移 v1.121：不再预置默认账户——清理从未使用过的预置账户
+           （名称/类型与预置一致、无任何账单·周期·借贷引用且初始余额为 0 才删除，动过的账户一律保留） */
+        if (data.settings.accDefaultsRemoved !== 'v1.121') {
+          const presetAcc = { '现金': 'cash', '支付宝': 'ewallet', '微信支付': 'ewallet', '储蓄卡': 'debit' };
+          const usedAcc = new Set();
+          data.transactions.forEach(t => { if (t.accountId) usedAcc.add(t.accountId); if (t.toAccountId) usedAcc.add(t.toAccountId); });
+          data.recurrings.forEach(r => { if (r.accountId) usedAcc.add(r.accountId); });
+          data.loans.forEach(l => { if (l.accountId) usedAcc.add(l.accountId); });
+          const accCount = data.accounts.length;
+          data.accounts = data.accounts.filter(a =>
+            !(presetAcc[a.name] === a.type && !usedAcc.has(a.id) && !(Number(a.initialBalance) > 0)));
+          data.settings.accDefaultsRemoved = 'v1.121';
+          if (data.accounts.length !== accCount) save();
+        }
         /* 迁移：旧 excluded 标记 → excludeStats + excludeBudget 独立标记 */
         data.transactions.forEach(t => {
           if (t.excludeStats === undefined) t.excludeStats = !!t.excluded;

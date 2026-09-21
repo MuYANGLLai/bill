@@ -1,5 +1,5 @@
 /* 轻账单 Service Worker：缓存优先，离线可用 */
-const CACHE = 'litebill-v1.118.0';
+const CACHE = 'litebill-v1.123.0';
 const ASSETS = [
   './',
   './index.html',
@@ -11,8 +11,11 @@ const ASSETS = [
   './js/charts.js',
   './js/views.js',
   './js/app.js',
+  './icons/icon-180.png',
   './icons/icon-192.png',
-  './icons/icon-512.png'
+  './icons/icon-512.png',
+  './icons/icon-maskable-192.png',
+  './icons/icon-maskable-512.png'
 ];
 
 self.addEventListener('install', e => {

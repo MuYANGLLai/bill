@@ -277,15 +277,19 @@ window.Views = (() => {
   function openRecAccModal() {
     const st = S().record;
     const accs = Store.getAccounts();
-    UI.modal('选择账户',
-      accs.map(a =>
+    const m = UI.modal('选择账户',
+      (accs.length ? accs.map(a =>
         '<button class="acc-pick-row' + (a.id === st.accountId ? ' active' : '') + '" data-action="pick-acc" data-val="' + a.id + '">' +
           '<span class="acc-mini" style="background:' + (a.color && a.color !== 'transparent' ? a.color : 'var(--border-soft)') + '">' + UI.catIcon(a.icon) + '</span>' +
           '<span class="rec-meta-txt">' + esc(a.name) + '</span>' +
           (a.hidden ? ' <em class="acc-hidden">已隐藏</em>' : '') +
         '</button>'
-      ).join('') +
-      '<div class="modal-actions"><button class="btn btn-ghost" data-action="modal-close">取消</button></div>');
+      ).join('') : '<div class="data-tip" style="padding:16px 0">还没有账户，先创建一个吧</div>') +
+      '<div class="modal-actions">' +
+        (accs.length ? '' : '<button class="btn btn-primary" data-action="go-create-acc">去创建账户</button>') +
+        '<button class="btn btn-ghost" data-action="modal-close">取消</button></div>');
+    const goBtn = m.box.querySelector('[data-action="go-create-acc"]');
+    if (goBtn) goBtn.addEventListener('click', () => { m.close(); App.nav('/accounts'); });
   }
 
   /* 时间（日期+时间）弹窗：上方日历选日期，下方闹钟式滚轮选时间 */
@@ -937,8 +941,6 @@ window.Views = (() => {
         return '<div class="sk2-label' + (side === 'right' ? ' sk2-r' : '') + '" style="flex:' + x.value + '">' +
           (side === 'left' ? dot + name + val : val + name + dot) + '</div>';
       }).join('');
-      const lines = items.map((x, i) =>
-        '<i class="sk2-line" style="flex:' + x.value + ';border-color:' + Preset.macaron[i % Preset.macaron.length] + '"></i>').join('');
       const bar = items.map((x, i) =>
         '<i class="sk2-seg" style="flex:' + x.value + ';background:' + Preset.macaron[i % Preset.macaron.length] + '" title="' + esc(x.label) + '：' + money(x.value) + '（' + Math.round(x.value / total * 100) + '%）"></i>').join('');
       return {
@@ -946,13 +948,13 @@ window.Views = (() => {
           (side === 'right'
             ? '<div class="sk2-body">' +
                 '<div class="sk2-bar">' + bar + '</div>' +
-                '<div class="sk2-lines">' + lines + '</div>' +
                 '<div class="sk2-labels">' + (rows || '<div class="data-tip">无记录</div>') + '</div>' +
+                '<svg class="sk2-links" aria-hidden="true"></svg>' +
               '</div>'
             : '<div class="sk2-body">' +
                 '<div class="sk2-labels">' + (rows || '<div class="data-tip">无记录</div>') + '</div>' +
-                '<div class="sk2-lines">' + lines + '</div>' +
                 '<div class="sk2-bar">' + bar + '</div>' +
+                '<svg class="sk2-links" aria-hidden="true"></svg>' +
               '</div>')
       };
     };
@@ -969,6 +971,7 @@ window.Views = (() => {
           '<div class="sk2-side sk2-side-r">' + exp.html + '</div>' +
         '</div>'
       : emptyHTML('🍃', '该时间段暂无收支记录');
+    if ((incTotal + expTotal) > 0) drawSk2Links();
 
     /* 收支占比：小圆环 + 右侧分类清单 */
     const de = $('#stat-donut');
@@ -1429,6 +1432,44 @@ window.Views = (() => {
       '</div>';
   }
 
+  /* 收支对比：为每个分类画虚线曲线，从分类名下方延伸、平滑连到对应柱段的中点。
+     位置按渲染后的实际 DOM 测量（兼容 min-height / space-around 造成的错位），窗口缩放时防抖重绘 */
+  function drawSk2Links() {
+    document.querySelectorAll('.sk2 .sk2-body').forEach(body => {
+      const svg = body.querySelector('.sk2-links');
+      if (!svg) return;
+      const br = body.getBoundingClientRect();
+      if (!br.width || !br.height) return;
+      svg.setAttribute('viewBox', '0 0 ' + br.width.toFixed(1) + ' ' + br.height.toFixed(1));
+      const segs = Array.prototype.slice.call(body.querySelectorAll('.sk2-seg'));
+      const isRight = !!body.closest('.sk2-side-r');
+      const paths = [];
+      body.querySelectorAll('.sk2-label').forEach((row, i) => {
+        const name = row.querySelector('.sk2-name');
+        const seg = segs[i];
+        if (!name || !seg) return;
+        const nr = name.getBoundingClientRect();
+        const sr = seg.getBoundingClientRect();
+        const sx = nr.left + nr.width / 2 - br.left;
+        const sy = nr.bottom - br.top + 2;
+        const ex = (isRight ? sr.right - 2 : sr.left + 2) - br.left;  // 略微探入色段，视觉上真正“接上”
+        const ey = sr.top + sr.height / 2 - br.top;
+        const mx = (sx + ex) / 2;
+        const color = getComputedStyle(seg).backgroundColor;
+        paths.push('<path d="M' + sx.toFixed(1) + ' ' + sy.toFixed(1) +
+          ' C' + mx.toFixed(1) + ' ' + sy.toFixed(1) + ', ' + mx.toFixed(1) + ' ' + ey.toFixed(1) + ', ' + ex.toFixed(1) + ' ' + ey.toFixed(1) +
+          '" fill="none" stroke="' + color + '" stroke-width="1.5" stroke-dasharray="4 3" stroke-linecap="round" opacity=".6"/>');
+      });
+      svg.innerHTML = paths.join('');
+    });
+  }
+  let sk2ResizeT = null;
+  window.addEventListener('resize', () => {
+    if (!document.querySelector('.sk2')) return;
+    clearTimeout(sk2ResizeT);
+    sk2ResizeT = setTimeout(drawSk2Links, 120);
+  });
+
   /* ================= 账户 ================= */
   function accounts() {
     const v = $('#view');
@@ -1872,15 +1913,8 @@ window.Views = (() => {
       sortSeg('cat2', 'income', '二级收入分类') +
       sortSeg('acc', '', '账户');
 
-    /* 功能管理 */
+    /* 功能管理配置 */
     const funcs = Store.data.settings.funcs || { homeTextBill: true };
-    const funcBody =
-      '<label class="check">' +
-        '<input type="checkbox" data-action="func-toggle" data-val="homeTextBill"' + (funcs.homeTextBill !== false ? ' checked' : '') + '> ' +
-        '<span>首页文字记账</span>' +
-        '<em class="cat-color-tip">' + (funcs.homeTextBill !== false ? '已开启：首页右下角显示「文字记账」圆形按钮' : '已关闭：首页隐藏文字记账入口') + '</em>' +
-      '</label>' +
-      '<div class="data-tip">控制首页右下角「文字记账」快捷入口是否显示。</div>';
 
     /* 记账提醒 */
     const reminders = Store.data.settings.reminders || [];
@@ -1901,6 +1935,19 @@ window.Views = (() => {
             '</div>').join('')
         : '<div class="data-tip">还没有提醒。可设置每天 / 每周 / 每月定时提醒记账；开启系统通知后，应用打开时会按时提醒你。</div>') +
       '<div class="data-tip">提醒在应用打开时生效（网页无法后台常驻），建议把应用添加到主屏幕。</div>';
+
+    /* 功能管理：首页功能 + 周期账单 + 记账提醒 */
+    const funcBody =
+      '<div class="func-section"><div class="func-head">📱 首页功能</div>' +
+        '<label class="check">' +
+          '<input type="checkbox" data-action="func-toggle" data-val="homeTextBill"' + (funcs.homeTextBill !== false ? ' checked' : '') + '> ' +
+          '<span>首页文字记账</span>' +
+          '<em class="cat-color-tip">' + (funcs.homeTextBill !== false ? '已开启：首页右下角显示「文字记账」圆形按钮' : '已关闭：首页隐藏文字记账入口') + '</em>' +
+        '</label>' +
+        '<div class="data-tip" style="margin:0">控制首页右下角「文字记账」快捷入口是否显示。</div>' +
+      '</div>' +
+      '<div class="func-section"><div class="func-head">📅 周期账单</div>' + recBody + '</div>' +
+      '<div class="func-section"><div class="func-head">⏰ 记账提醒</div>' + remindBody + '</div>';
 
     /* 数据管理 */
     const dataBody =
@@ -1943,7 +1990,7 @@ window.Views = (() => {
 
     /* 关于（含安装到桌面） */
     const aboutBody =
-      '<div class="about-name">🧾 轻账单 LiteBill<span class="about-ver">' + ((window.App && App.VERSION) || 'v1.118.0') + '</span></div>' +
+      '<div class="about-name">🧾 轻账单 LiteBill<span class="about-ver">' + ((window.App && App.VERSION) || 'v1.123.0') + '</span></div>' +
       '<div class="about-desc">本地优先的个人记账应用：记账、分类、账户、统计、预算、借贷、周期账单、文字记账、导入导出。数据不离开你的设备。</div>' +
       '<div class="about-install">' + installBody + '</div>' +
       '<div class="about-update">' +
@@ -1960,8 +2007,6 @@ window.Views = (() => {
       '<div class="page">' +
         '<div class="page-head"><h1>设置</h1></div>' +
         item('cat', 'category', '分类管理', catBody) +
-        item('rec', 'calendar', '周期账单', recBody) +
-        item('remind', 'time', '记账提醒', remindBody) +
         item('theme', 'palette', '外观', themeBody) +
         item('sort', 'list', '排序管理', sortBody) +
         item('func', 'gear', '功能管理', funcBody) +

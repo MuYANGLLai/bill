@@ -35,7 +35,8 @@ window.UI = (() => {
     if (pay) return '<span class="pay-brand" style="background:' + pay.bg + '">' + pay.t + '</span>';
     const paths = window.Preset.lineIcons[key];
     if (paths) {
-      return '<svg class="line-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + paths + '</svg>';
+      /* 面性 + 线性双质感：闭合轮廓染 20% 同色底、细节保留线条，特征在小尺寸下更醒目 */
+      return '<svg class="line-ico" viewBox="0 0 24 24" fill="currentColor" fill-opacity=".2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + paths + '</svg>';
     }
     return esc(key || '📦');
   }

@@ -35,9 +35,9 @@ window.Preset = {
 
   /* 线条简约风图标库：key → SVG 路径（24x24，stroke=currentColor） */
   lineIcons: {    bag:        '<path d="M6 8h12l-1.2 12H7.2L6 8z"/><path d="M9 8V7a3 3 0 0 1 6 0v1"/>',
-    bowl:       '<path d="M4 12h16a8 8 0 0 1-16 0z"/><path d="M12 4v3"/><path d="M8 5v1"/><path d="M16 5v1"/>',
+    bowl:       '<path d="M12 5.5a1.5 1.5 0 0 1 .8 2.77A7.5 7.5 0 0 1 19.5 15h-15a7.5 7.5 0 0 1 6.7-6.73A1.5 1.5 0 0 1 12 5.5z"/><path d="M3.5 18.5h17"/>',
     car:        '<path d="M3 16l2-5 1-3h12l1 3 2 5"/><path d="M3 16h18v3H3z"/><circle cx="7" cy="19" r="1.2"/><circle cx="17" cy="19" r="1.2"/>',
-    home:       '<path d="M4 11l8-7 8 7"/><path d="M6 10v10h12V10"/>',
+    home:       '<path d="M4 11l8-7 8 7"/><path d="M6 10v10h12V10z"/>',
     book:       '<path d="M5 4h14v16H5z"/><path d="M9 4v16"/>',
     gift:       '<path d="M4 12h16v8H4z"/><path d="M4 9h16v3H4z"/><path d="M12 9v11"/><path d="M12 9S8 9 7 6.5 10 3.5 12 9z"/><path d="M12 9s4 0 5-2.5S14 3.5 12 9z"/>',
     plus:       '<path d="M12 20s-7-4.5-9-9a5 5 0 0 1 9-3 5 5 0 0 1 9 3c-2 4.5-9 9-9 9z"/><path d="M12 9v5"/><path d="M9.5 11.5h5"/>',
@@ -60,14 +60,14 @@ window.Preset = {
     cookie:     '<circle cx="12" cy="12" r="8"/><path d="M8.5 9.5h.01"/><path d="M15 8.5h.01"/><path d="M9 15.5h.01"/><path d="M15 15.5h.01"/><path d="M12 12h.01"/>',
     fish:       '<path d="M3 12c0-3 4-6 13-5l2 5-2 5c-9 1-13-2-13-5z"/><path d="M16 7l4-4"/><path d="M7.5 12h.01"/>',
     clink:      '<path d="M9 3v8l-4 7a2 2 0 0 0 2 3h2a2 2 0 0 0 2-3l-4-7V3"/><path d="M9 3h2"/><path d="M15 3v8l-4 7a2 2 0 0 0 2 3h2a2 2 0 0 0 2-3l-4-7V3"/><path d="M15 3h-2"/>',
-    bus:        '<path d="M5 17V6a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v11"/><path d="M5 12h14"/><path d="M5 17h14v3H5z"/><circle cx="8" cy="20" r="1.1"/><circle cx="16" cy="20" r="1.1"/>',
+    bus:        '<path d="M5 17V6a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v11z"/><path d="M5 12h14"/><path d="M5 17h14v3H5z"/><circle cx="8" cy="20" r="1.1"/><circle cx="16" cy="20" r="1.1"/>',
     parking:    '<circle cx="12" cy="12" r="9"/><path d="M9 16V8h4a3 3 0 0 1 0 6H9"/>',
-    fuel:       '<path d="M4 21V6a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v15"/><path d="M4 15h10v6"/><path d="M14 9h3l3 3v4a1.5 1.5 0 0 1-3 0"/>',
+    fuel:       '<path d="M4 21V6a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v15z"/><path d="M4 15h10v6"/><path d="M14 9h3l3 3v4a1.5 1.5 0 0 1-3 0"/>',
     train:      '<path d="M4 5a8 8 0 0 1 16 0v9H4z"/><path d="M4 11h16"/><path d="M8 17l-2 4"/><path d="M16 17l2 4"/>',
     plane:      '<path d="M22 2L11 13"/><path d="M22 2L15 22l-4-9-9-4 20-7z"/>',
     wifi:       '<path d="M2 9a15 15 0 0 1 20 0"/><path d="M5.5 12.5a10 10 0 0 1 13 0"/><path d="M9 16a5 5 0 0 1 6 0"/><path d="M12 20h.01"/>',
     flame:      '<path d="M12 3c1 3 5 5 5 9a5 5 0 0 1-10 0c0-3 3-6 5-9z"/><path d="M12 14a2.5 2.5 0 0 0-2.5 2.5c0 1 1 2 2.5 2.5 1.5-.5 2.5-1.5 2.5-2.5A2.5 2.5 0 0 0 12 14z"/>',
-    building:   '<path d="M4 21V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v16"/><path d="M16 9h3a1 1 0 0 1 1 1v11"/><path d="M4 21h17"/><path d="M8 7h2"/><path d="M8 11h2"/><path d="M8 15h2"/>',
+    building:   '<path d="M4 21V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v16z"/><path d="M16 9h3a1 1 0 0 1 1 1v11"/><path d="M4 21h17"/><path d="M8 7h2"/><path d="M8 11h2"/><path d="M8 15h2"/>',
     key:        '<circle cx="8" cy="15" r="4.5"/><path d="M11 12l9-9"/><path d="M16 7l3 3"/>',
     broom:      '<path d="M14 4l6 6"/><path d="M11 7l-8 8 3 3 8-8"/><path d="M4 18l-1 3 3-1"/>',
     grad:       '<path d="M22 9L12 5 2 9l10 4 10-4z"/><path d="M6 11.5V16c0 2 2.5 3.5 6 3.5s6-1.5 6-3.5v-4.5"/>',
@@ -90,11 +90,57 @@ window.Preset = {
     refund:     '<polyline points="2 5 2 11 8 11"/><path d="M4.51 15a9 9 0 1 0 2.13-9.36L2 11"/><path d="M14 8.5l1.5 1.5 1.5-1.5"/><path d="M15.5 10v6"/><path d="M13.5 13.5h4"/>',
     movie:      '<rect x="3.5" y="5" width="17" height="14" rx="2"/><path d="M3.5 10h17"/><path d="M12 10v9"/><circle cx="12" cy="13" r="1.3"/>',
     dumbbell:   '<path d="M4 9v6"/><path d="M7 8v8"/><path d="M7 8h10"/><path d="M17 8v8"/><path d="M20 9v6"/>',
-    bed:        '<path d="M3 19V9a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v10"/><path d="M3 14h18"/><path d="M7 14v-3h4v3"/>',
+    bed:        '<path d="M3 19V9a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v10z"/><path d="M3 14h18"/><path d="M7 14v-3h4v3"/>',
     netbar:     '<rect x="4" y="4.5" width="16" height="11" rx="1.5"/><path d="M12 15.5v3.5"/><path d="M8.5 19h7"/>',
     sport:      '<circle cx="12" cy="12" r="8.5"/><path d="M12 3.5v17"/><path d="M5.2 8l13.6 8"/><path d="M18.8 8l-13.6 8"/>',
     outdoor:    '<circle cx="17.5" cy="6.5" r="2"/><path d="M3.5 19L10 9l3.5 5.5L16 12l4.5 7z"/><path d="M3.5 19h17"/>',
-    bedding:    '<rect x="3" y="4" width="18" height="8" rx="3"/><path d="M3 8h18"/><path d="M8 4v8"/><path d="M16 4v8"/><path d="M5 15h14l-1 6H6z"/><path d="M5 18h14"/>'
+    bedding:    '<rect x="3" y="4" width="18" height="8" rx="3"/><path d="M3 8h18"/><path d="M8 4v8"/><path d="M16 4v8"/><path d="M5 15h14l-1 6H6z"/><path d="M5 18h14"/>',
+
+    /* ---- 收入向 ---- */
+    wallet:     '<rect x="3" y="6" width="18" height="13" rx="2.5"/><path d="M21 10.5h-6a2 2 0 0 0 0 4h6"/><path d="M16.5 12.5h.01"/>',
+    banknote:   '<rect x="3" y="7" width="18" height="10" rx="2"/><circle cx="12" cy="12" r="2.3"/><path d="M6.3 12h.01"/><path d="M17.7 12h.01"/>',
+    coins:      '<ellipse cx="12" cy="7" rx="6.5" ry="2.6"/><path d="M5.5 7v10a6.5 2.6 0 0 0 13 0V7"/><path d="M5.5 12a6.5 2.6 0 0 0 13 0"/>',
+    medal:      '<circle cx="12" cy="9" r="4.8"/><path d="M9.2 12.8L7.5 21l4.5-2.6L16.5 21l-1.7-8.2"/>',
+    trophy:     '<path d="M8 4h8v5a4 4 0 0 1-8 0z"/><path d="M8 6H5.5a2.5 2.5 0 0 0 2.9 3"/><path d="M16 6h2.5a2.5 2.5 0 0 1-2.9 3"/><path d="M12 13v4"/><path d="M9 20h6"/><path d="M10 20l.7-3h2.6l.7 3"/>',
+    percent:    '<path d="M19 5L5 19"/><circle cx="7.5" cy="7.5" r="2.4"/><circle cx="16.5" cy="16.5" r="2.4"/>',
+    ticket:     '<path d="M4 10V8a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v2a2 2 0 0 0 0 4v2a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-2a2 2 0 0 0 0-4z"/><path d="M14.5 6.5v3"/><path d="M14.5 10.5v3"/><path d="M14.5 14.5v3"/>',
+    briefcase:  '<rect x="3" y="7.5" width="18" height="12.5" rx="2.5"/><path d="M9 7.5V6a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v1.5"/><path d="M3 12.5h18"/>',
+    crown:      '<path d="M4 8.5l4.2 3L12 5.5l3.8 6 4.2-3-1.6 10.5H5.6z"/>',
+    umbrella:   '<path d="M12 3a9 9 0 0 1 9 9.5H3A9 9 0 0 1 12 3z"/><path d="M12 12.5V18a2 2 0 0 0 4 0"/>',
+    rent:       '<path d="M4 11l8-7 8 7"/><path d="M6 10v10h12V10z"/><circle cx="12" cy="14.5" r="2.4"/>',
+    tag:        '<path d="M3 3h7l11 11-7 7L3 10V3z"/><circle cx="7.5" cy="7.5" r="1.5"/>',
+    pulse:      '<path d="M3 12h4l2-4.5 4 9 2-4.5h6"/>',
+    repeat:     '<path d="M4 12a8 8 0 0 1 13.6-5.7"/><path d="M18 2.5V7h-4.5"/><path d="M20 12a8 8 0 0 1-13.6 5.7"/><path d="M6 21.5V17h4.5"/>',
+
+    /* ---- 支出向 ---- */
+    paw:        '<circle cx="6.3" cy="10" r="1.7"/><circle cx="10.2" cy="7.2" r="1.7"/><circle cx="13.8" cy="7.2" r="1.7"/><circle cx="17.7" cy="10" r="1.7"/><path d="M12 11.5c3.1 0 5.6 2.3 5.6 4.9 0 1.7-1.3 2.7-2.9 2.7-.9 0-1.7-.4-2.7-.4s-1.8.4-2.7.4c-1.6 0-2.9-1-2.9-2.7 0-2.6 2.5-4.9 5.6-4.9z"/>',
+    baby:       '<path d="M10 3.5h4v3h-4z"/><path d="M9 6.5h6l1 2.5v8.5a2.5 2.5 0 0 1-2.5 2.5h-3A2.5 2.5 0 0 1 8 17.5V9z"/><path d="M8 12.5h8"/>',
+    blocks:     '<rect x="4" y="13" width="7.5" height="7" rx="1.5"/><rect x="12.5" y="13" width="7.5" height="7" rx="1.5"/><rect x="8" y="4" width="8" height="7" rx="1.5"/><path d="M10.5 7.5h3"/>',
+    scissors:   '<circle cx="6" cy="6.5" r="2.3"/><circle cx="6" cy="17.5" r="2.3"/><path d="M8 8L20 18"/><path d="M8 16L20 6"/>',
+    sparkle:    '<path d="M11 4c.6 3.7 2.6 5.7 6.3 6.3-3.7.6-5.7 2.6-6.3 6.3-.6-3.7-2.6-5.7-6.3-6.3 3.7-.6 5.7-2.6 6.3-6.3z"/><path d="M17.5 15.5l.6 1.9 1.9.6-1.9.6-.6 1.9-.6-1.9-1.9-.6 1.9-.6z"/>',
+    shield:     '<path d="M12 3l7 2.5v5.6c0 4.7-3 7.9-7 9.9-4-2-7-5.2-7-9.9V5.5z"/><path d="M9 11.5l2.2 2.2 4-4"/>',
+    receipt:    '<path d="M6 3h12v18l-2-1.4-2 1.4-2-1.4L10 21l-2-1.4L6 21z"/><path d="M9.5 8h5"/><path d="M9.5 12h5"/>',
+    truck:      '<path d="M3 7h11v9H3z"/><path d="M14 10h3.5l3.5 3.5V16h-7"/><circle cx="7" cy="18.3" r="1.8"/><circle cx="17.3" cy="18.3" r="1.8"/>',
+    wrench:     '<path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>',
+    wine:       '<path d="M8 3h8l-.5 5.5a3.5 3.5 0 0 1-7 0z"/><path d="M12 12v8"/><path d="M8.5 20h7"/>',
+    flower:     '<path d="M8 3.5c0 3 1.2 5 4 5s4-2 4-5c-1.6 0-2.7.6-4 2-1.3-1.4-2.4-2-4-2z"/><path d="M12 8.5V21"/><path d="M12 14.5c-2.8 0-4.8-1.4-5.5-3.8 2.8-.3 4.7 1.1 5.5 3.8z"/><path d="M12 14.5c2.8 0 4.8-1.4 5.5-3.8-2.8-.3-4.7 1.1-5.5 3.8z"/>',
+    pot:        '<path d="M4 10.5h16"/><path d="M5 10.5v5.5a3 3 0 0 0 3 3h8a3 3 0 0 0 3-3v-5.5"/><path d="M9.5 4.5c-.8 1-.8 2 0 3"/><path d="M14.5 4.5c-.8 1-.8 2 0 3"/>',
+    spray:      '<path d="M10 8.5h5l1 3.5v6.5a2 2 0 0 1-2 2h-3a2 2 0 0 1-2-2V12z"/><path d="M11 8.5V6h3l1-2.5"/><path d="M18 4h.01"/><path d="M20.5 6h.01"/><path d="M20.5 2h.01"/>',
+    washer:     '<rect x="4" y="3" width="16" height="18" rx="2.5"/><circle cx="12" cy="13" r="4.5"/><path d="M7.5 6.5h.01"/><path d="M10.5 6.5h.01"/><path d="M9 14c1-1.3 2-1.3 3 0s2 1.3 3 0"/>',
+    suitcase:   '<rect x="4" y="8" width="16" height="12" rx="2.5"/><path d="M9 8V6a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"/><path d="M9 11v6"/><path d="M15 11v6"/>',
+    hotelbell:  '<path d="M4 18.5h16"/><path d="M5 18.5a7 7 0 0 1 14 0z"/><path d="M12 11.5v-2"/><path d="M10.5 9.5h3"/>',
+    glasses:    '<circle cx="6.8" cy="15" r="3"/><circle cx="17.2" cy="15" r="3"/><path d="M9.8 14.5c.6-1.1 3.8-1.1 4.4 0"/><path d="M3.8 13.5L2.5 10.5"/><path d="M20.2 13.5l1.3-3"/>',
+    headphone:  '<path d="M4 15.5V12a8 8 0 0 1 16 0v3.5"/><rect x="3" y="14" width="4.2" height="6.5" rx="1.6"/><rect x="16.8" y="14" width="4.2" height="6.5" rx="1.6"/>',
+    printer:    '<path d="M7 8V3.5h10V8"/><path d="M7 16H4.5A1.5 1.5 0 0 1 3 14.5v-5A1.5 1.5 0 0 1 4.5 8h15a1.5 1.5 0 0 1 1.5 1.5v5a1.5 1.5 0 0 1-1.5 1.5H17z"/><path d="M7 15h10v5.5H7z"/>',
+    burger:     '<path d="M4 10a8 5.5 0 0 1 16 0z"/><path d="M4 13.5h16"/><path d="M4 16.5h16v.5a2.5 2.5 0 0 1-2.5 2.5h-11A2.5 2.5 0 0 1 4 17z"/>',
+    noodle:     '<path d="M4 12h16a8 8 0 0 1-16 0z"/><path d="M9.5 12V5"/><path d="M12.5 12V4"/><path d="M15.5 12V5"/>',
+    bread:      '<path d="M5.5 9.5c0-2.5 2-4 4-4h5c2 0 4 1.5 4 4 0 1-.5 1.9-1.3 2.4V19H6.8v-7.1c-.8-.5-1.3-1.4-1.3-2.4z"/><path d="M9.5 9.5v3.5"/><path d="M14.5 9.5v3.5"/>',
+    milk:       '<path d="M8 9.5V19a1.8 1.8 0 0 0 1.8 1.8h4.4A1.8 1.8 0 0 0 16 19V9.5L12 5z"/><path d="M8 9.5h8"/><path d="M12 5v4.5"/>',
+    egg:        '<path d="M12 4c2.8 0 5.5 4.8 5.5 8.6a5.5 5.5 0 0 1-11 0C6.5 8.8 9.2 4 12 4z"/>',
+    camera:     '<rect x="3" y="7" width="18" height="13" rx="2.5"/><path d="M8.5 7l1.5-2.5h4L15.5 7"/><circle cx="12" cy="13.5" r="3.2"/>',
+    music:      '<circle cx="6.5" cy="17" r="2.6"/><circle cx="17" cy="15" r="2.6"/><path d="M9.1 17V6.5l10.5-2.2V15"/><path d="M9.1 9.5l10.5-2.2"/>',
+    cake:       '<path d="M5 21h14v-6.5a3 3 0 0 0-3-3H8a3 3 0 0 0-3 3z"/><path d="M5 16.8c1.5 1.2 3 1.2 4.5 0s3-1.2 4.5 0 3 1.2 4.5 0"/><path d="M12 11.5V9"/><path d="M12 6.8c.9-.9.9-1.9 0-2.8-.9.9-.9 1.9 0 2.8z"/>',
+    ring:       '<circle cx="9" cy="14.5" r="4.5"/><circle cx="15" cy="14.5" r="4.5"/><path d="M12 7.5l-1.8-2.8h3.6z"/>'
   },
 
   /* 功能 UI 线条图标库 */
@@ -197,10 +243,6 @@ window.Preset = {
     { v: 'hei',    n: '黑体', f: '"PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "SimHei", sans-serif' },
     { v: 'kai',    n: '楷体', f: '"Kaiti SC", "STKaiti", KaiTi, serif' }
   ],
-  defaultAccounts: [
-    { name: '现金',     type: 'cash',       icon: '💵', color: 'transparent', initialBalance: 0 },
-    { name: '支付宝',   type: 'ewallet',    icon: '💙', color: 'transparent', initialBalance: 0 },
-    { name: '微信支付', type: 'ewallet',    icon: '💬', color: 'transparent', initialBalance: 0 },
-    { name: '储蓄卡',   type: 'debit',      icon: '💳', color: 'transparent', initialBalance: 0 }
-  ]
+  /* 默认不预置账户，由用户自行创建（v1.121 起） */
+  defaultAccounts: []
 };
